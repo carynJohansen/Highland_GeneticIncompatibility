@@ -32,7 +32,7 @@ fastq=$srr\_pass\_1.fastq.gz
 
 ## MAIN
 
-echo $SLURM_ARRAY_TASK_ID $srr $fasta $fastq $idx >> kallisto_info.txt
+echo $SLURM_JOB_ID $SLURM_ARRAY_TASK_ID $srr $fasta $fastq $idx >> kallisto_info.txt
 
 #Build index
 
