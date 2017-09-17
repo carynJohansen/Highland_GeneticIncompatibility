@@ -5,7 +5,7 @@
 #SBATCH -o /home/caryn89/Projects/Highland_GeneticIncompatibility/TeoMaizeCrossTest/logs/kallisto_%j.out
 #SBATCH -e /home/caryn89/Projects/Highland_GeneticIncompatibility/TeoMaizeCrossTest/logs/kallisto_%j.out
 #SBATCH --time=4:00:00
-#SBATCH --mem=10000
+#SBATCH --mem=50000
 #SBATCH --array=1-13
 
 set -u
