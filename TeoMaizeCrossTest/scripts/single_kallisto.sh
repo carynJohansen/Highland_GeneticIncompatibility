@@ -21,34 +21,21 @@ kallisto version
 
 srr=SRR1586620
 
-idx=$srr.idx
-fasta=$srr\_pass.fasta.gz
+idx="/home/caryn89/genomes/maize_cdna_v4/Zea_mays.AGPv4.cdna.all.idx"
 fastq=$srr\_pass\_1.fastq.gz
 
 ## MAIN
 
-echo $SLURM_JOB_ID $srr $fasta $fastq $idx >> $srr\_info.txt
-
-#Build index
-
-#idx_start=`date +%s`
-
-#kallisto index -i data/raw/$idx data/raw/$fasta
-#err=$?
-#echo index error: $err
-
-#idx_end=`date +%s`
-#((idx_time=$end-$start))
-
-#echo kallisto index runtime was $idx_time s
+echo $SLURM_JOB_ID $srr $fastq $idx >> $srr\_info.txt
 
 # Quantify
 
 quant_start=`date +%s`
 
-mkdir data/processed/$srr
+mkdir data/processed/test/$srr
 
-kallisto quant -i data/raw/$idx -o data/processed/$srr -b 100 --single -l 101 -s 20 data/raw/$fastq
+#not bootstrapping for test runs
+kallisto quant -i $idx -o data/processed/test/$srr --single -l 101 -s 20 data/raw/$fastq
 err=$?
 echo kallisto error: $err
 
