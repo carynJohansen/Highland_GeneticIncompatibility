@@ -4,7 +4,7 @@
 #SBATCH -J index
 #SBATCH -o /home/caryn89/Projects/Highland_GeneticIncompatibility/TeoMaizeCrossTest/logs/index_%j.out
 #SBATCH -e /home/caryn89/Projects/Highland_GeneticIncompatibility/TeoMaizeCrossTest/logs/index_%j.out
-#SBATCH --time=9:00:00
+#SBATCH --time=5:00:00
 #SBATCH --mem=50000
 
 set -u
@@ -35,4 +35,6 @@ err=$?
 echo index error: $err
 
 idx_end=`date +%s`
-((idx_time=$end-$start))
+((idx_time=$idx_end-$idx_start))
+echo $index_time
+
