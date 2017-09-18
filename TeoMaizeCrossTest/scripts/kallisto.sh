@@ -37,9 +37,9 @@ echo $SLURM_JOB_ID $SLURM_ARRAY_TASK_ID $srr $fastq $idx >> kallisto_info.txt
 
 quant_start=`date +%s`
 
-mkdir data/processed/$srr\_2
+mkdir data/processed/$srr
 
-kallisto quant -i $idx -o data/processed/$srr\_2 -b 100 --single -l 101 -s 20 data/raw/$fastq
+kallisto quant -i $idx -o data/processed/$srr -b 100 --single -l 101 -s 20 data/raw/$fastq
 err=$?
 echo kallisto error: $err
 
