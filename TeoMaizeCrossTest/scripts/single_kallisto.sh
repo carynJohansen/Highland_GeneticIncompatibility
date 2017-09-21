@@ -1,7 +1,7 @@
 #!/bin/bash -l
 
 #SBATCH -D /home/caryn89/Projects/Highland_GeneticIncompatibility/TeoMaizeCrossTest
-#SBATCH -J SRR1586620 
+#SBATCH -J SRR1586766 
 #SBATCH -o /home/caryn89/Projects/Highland_GeneticIncompatibility/TeoMaizeCrossTest/logs/single_kal_%j.out
 #SBATCH -e /home/caryn89/Projects/Highland_GeneticIncompatibility/TeoMaizeCrossTest/logs/single_kal_%j.out
 #SBATCH --time=9:00:00
@@ -19,7 +19,7 @@ kallisto version
 
 ## DATA
 
-srr=SRR1586620
+srr=SRR1586766
 
 idx="/home/caryn89/genomes/maize_cdna_v4/Zea_mays.AGPv4.cdna.all.idx"
 fastq=$srr\_pass\_1.fastq.gz
@@ -32,10 +32,10 @@ echo $SLURM_JOB_ID $srr $fastq $idx >> $srr\_info.txt
 
 quant_start=`date +%s`
 
-mkdir data/processed/test/$srr
+mkdir data/processed/$srr
 
 #not bootstrapping for test runs
-kallisto quant -i $idx -o data/processed/test/$srr --single -l 101 -s 20 data/raw/$fastq
+kallisto quant -i $idx -o data/processed/$srr -b 100 --single -l 101 -s 20 data/raw/$fastq
 err=$?
 echo kallisto error: $err
 
