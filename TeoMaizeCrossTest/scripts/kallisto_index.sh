@@ -19,9 +19,9 @@ kallisto version
 
 ## DATA
 
-cdna="/home/caryn89/genomes/maize_cdna_v4/Zea_mays.AGPv4.cdna.all.fa.gz"
+cdna="/home/caryn89/genomes/maize_cdna_v4/Zea_mays.AGPv4.cdna.T01filtered.fa"
 
-idx="/home/caryn89/genomes/maize_cdna_v4/Zea_mays.AGPv4.cdna.all.idx"
+idx="/home/caryn89/genomes/maize_cdna_v4/Zea_mays.AGPv4.cdna.T01filtered.idx"
 
 
 ## MAIN
@@ -36,5 +36,5 @@ echo index error: $err
 
 idx_end=`date +%s`
 ((idx_time=$idx_end-$idx_start))
-echo $index_time
+echo $idx_time
 
