@@ -1,0 +1,314 @@
+---
+title: "Sleuth and Aggregating p-values"
+author: "Caryn Johansen"
+date: "9/22/2017"
+output: html_document
+---
+
+**to do's**
+
+- design matrices
+- add all the est_counts for each gene up, and do limma on those counts (don't need the bootstrap values)
+
+# Introduction
+
+
+I used RNA-seq data from Lemmon et al. 2014 (http://journals.plos.org/plosgenetics/article?id=10.1371/journal.pgen.1004745), downloaded from the SRA (https://www.ncbi.nlm.nih.gov/bioproject/PRJNA262181)
+
+```
+fastq-dump --outdir data/raw --gzip --skip-technical --readids --read-filter pass --dumpbase --clip -fasta $srr
+```
+
+Index was created from the AGPv4 full genome cdna (ftp://ftp.ensemblgenomes.org/pub/plants/release-37/fasta/zea_mays/cdna/)
+
+```
+kallisto index -i $idx $cdna
+```
+
+**all details for scripts found in the project folder:** `Projects/Highland_GeneticIncompatibility/TeoMaizeCrossTest/scripts` 
+
+Kallisto code found `scripts` under `kallisto.sh`. The general command was:
+
+```
+kallisto quant -i $idx -o data/bootstrap100/$srr -b 100 --single -l 101 -s 20 data/raw/$fastq
+```
+
+Running sleuth on the outputs of kallisto. 
+
+I mostly have followed the basic recommendations of running sleuth (https://pachterlab.github.io/sleuth/walkthroughs), and then
+aggregated the transcript-level results for a gene-level differential analysis using the protocol and code from Yi et al. 2017 (https://github.com/pachterlab/aggregationDE/tree/df486bf83846b06f9b1d7c29081a4264fd658298)
+
+# Setup
+
+
+```{r}
+library(sleuth)
+library(ggplot2)
+library(tidyverse)
+```
+
+# Data
+
+Setting up the data for sleuth, using the SRR and meta data
+
+```{r}
+sample_id <- dir(file.path("data/fullTranscript/"))
+sample_id
+```
+
+Get the file path for kallisto output
+
+```{r}
+kal_results <- file.path("data/fullTranscript", sample_id)
+kal_results
+
+res <- as.data.frame(cbind(sample_id, kal_results))
+res
+```
+
+Generate the data structure to provide sleuth with the design matrix.
+
+There are two tissue types here, but I really only want to do leaf until I have a reason to do both tissues.
+
+```{r}
+meta <- read.table("simple_meta.txt", header=T, sep = " ", stringsAsFactors = T)
+meta
+meta_leaf <- dplyr::filter(meta, tissue_s == "leaf")
+meta_leaf <- dplyr::select(meta_leaf, sample=Run_s, cultivar=cultivar_s)
+str(meta_leaf)
+
+sample_leaf <- as.character(meta_leaf$sample)
+res_leaf <- res[as.character(res$sample_id) %in% sample_leaf,]
+meta_leaf <- dplyr::mutate(meta_leaf, path=as.character(res_leaf$kal_results))
+meta_leaf
+```
+
+# Sleuth
+
+## Design matrix
+
+There are three groups: F1 cross and each parent.
+
+
+
+```{r}
+meta_leaf$cultivar <- factor(meta_leaf$cultivar, levels=c("B73_TIL01", "B73", "TIL01"))
+model.matrix(~cultivar, meta_leaf)
+```
+This is what the "full" model in sleuth runs.
+
+**To do** make two different null models. Where it's different than b73, and where it's different than TIL01. Do do that, make two null
+model matrices, where you only remove one of the columns, either the B73 or the TIL01 column.
+
+```{r}
+model.matrix(~1, meta_leaf)
+```
+This is what the "reduced" model in sleuth runs.
+
+If I'm comparing these two models in the likelihood ratio rest, the reduced model is the null hypothesis, where all the groups are the same.
+
+## sleuth
+
+Running sleuth at the transcript level (all transcripts)
+
+Generate the sleuth object
+
+```{r}
+leaf_so <- sleuth_prep(meta_leaf, ~cultivar, extra_bootstrap_summary = TRUE)
+```
+
+The `extra_bootstrap_summary=TRUE` option is important for graphing the output of sleuth later. This doesn't help for the gene-level aggregation later though.
+
+Fit the model. This is done differently between the walk through and the code in Yi et al. 2017. I'm still figuring out exactly how to run it.
+
+The "full" model fit is to smooth the raw kallisto abundance estimates using a linear model. Using a model that represents the experimental parameters (`cultivars`)
+
+```{r}
+leaf_so <- sleuth_fit(leaf_so, formula =  ~cultivar, fit_name = 'full')
+```
+
+The second fit to a reduced model presumes the abundances are equal between the two conditions (?)
+```{r}
+leaf_so <- sleuth_fit(leaf_so, formula = ~1, fit_name = 'reduced')
+```
+
+Test the fits using a likelihood ratio test for two models. The reduced model is the null model, and the full is the alternate model.
+```{r}
+leaf_so <- sleuth_lrt(leaf_so, null_model = 'reduced', alt_model = 'full')
+```
+
+Extract the LRT test results from the sleuth object
+
+```{r}
+sleuth_table <- sleuth_results(leaf_so, test='reduced:full', test_type = 'lrt', show_all=FALSE)
+```
+
+## looking at the significant transcripts
+
+```{r}
+sleuth_sig <- dplyr::filter(sleuth_table, qval<=0.05)
+dim(sleuth_sig)
+head(sleuth_sig, 20)
+```
+
+Here, there are `r dim(sleuth_sig)[1]` transcripts with a q-values <= 0.05.
+
+Some graphs:
+
+```{r}
+plot_bootstrap(leaf_so, sleuth_sig[1,]$target_id, units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so, sleuth_sig[2,]$target_id, units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so, sleuth_sig[3,]$target_id, units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so, sleuth_sig[4,]$target_id, units="est_counts", color_by="cultivar")
+```
+
+Some less sig output
+
+```{r}
+plot_bootstrap(leaf_so, sleuth_sig[2000,]$target_id, units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so, sleuth_sig[3000,]$target_id, units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so, sleuth_sig[5000,]$target_id, units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so, sleuth_sig[4900,]$target_id, units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so, sleuth_sig[2500,]$target_id, units="est_counts", color_by="cultivar")
+```
+
+# Aggregate p-values for gene-based analysis
+
+As done in 'Gene Level Differential Analysis at transcript-level resolution' Yi et al. 2017
+
+Using the Lancaster method, which aggregates p-values while weighting them. Here, the p-values are wieghted by the mean of the natural log counts of observations (`mean_obs`) (`?sleuth_results`). 
+
+
+## functions
+
+```{r}
+MinMethod <- function(pvalues)
+{
+	if(length(pvalues) == 0)
+	{
+			return(NA)
+	}
+	pvalues <- pvalues[!is.na(pvalues)]
+	if(length(pvalues) == 0)
+	{
+			return(NA)
+	}
+	n <- length(pvalues)
+	m <- min(pvalues)
+	1 - (1-m) ^ n
+}
+
+lancaster <- function(pvalues, weights)
+{
+	weights <- weights[!is.na(pvalues)]
+	pvalues <- pvalues[!is.na(pvalues)]
+	pvalues <- pvalues[weights>0]
+	weights <- weights[weights>0]
+	
+	if(length(weights) != length(pvalues))
+	{
+		print('error, weights not equal to pvalues')
+	}
+
+	if(length(pvalues) == 0)
+	{
+		return(NA)
+	}
+	if(!any(weights))
+	{
+		return(NA)
+	}
+	if(length(pvalues) == 1)
+	{
+		return(pvalues)
+	}
+	t <- sapply(1:length(pvalues), function(i) lts(pvalues[i], weights[i])) #redefining the p-value based on gamma distribution with a shape defined by the weight
+	t <- sum(t)
+	p <- pchisq(t, sum(weights), lower.tail=FALSE) # the distribution function for chi squared
+	return(p)
+}
+lts <- function(pvalue, weight)
+{
+	qgamma(pvalue, shape = weight /2, scale = 2, lower.tail=FALSE)
+}
+```
+
+## Gene-level
+
+Get transcript IDs to add a column of gene and transcript information to sleuth results
+
+```{r}
+abundance <- read.table("data/fullTranscript/SRR1586618/abundance.tsv", header=T, sep="\t")
+transcripts <- as.character(abundance$target_id)
+transcript_split <- strsplit(transcripts, "_")
+df_transcripts <- as.data.frame(do.call(rbind,transcript_split))
+colnames(df_transcripts) <- c("gene", "transcript_id")
+df_transcripts$target_id <- abundance$target_id
+head(df_transcripts)
+
+merge_results <- merge(sleuth_table, df_transcripts, by='target_id', all.x=TRUE)
+head(merge_results)
+```
+
+It's important to note the different sizes. Information about transcripts was lost during kallisto. Not every transcript has information here. Not yet sure what's going on, and will need to examine the logs of each kallisto run.
+
+## Aggregate the p-values
+
+The `mean_obs` values is the mean of natural log counts of observations. It's how the p-values are being weighted
+
+```{r, warning=FALSE}
+results <- merge_results %>% group_by(gene) %>% summarise(lan = lancaster(pval, exp(mean_obs)), weight = sum(exp(mean_obs), na.rm=TRUE), min = MinMethod(pval))
+dim(results)
+head(results)
+```
+
+get the significant results
+
+```{r}
+sig_results <- results %>% filter(lan <= 0.05) %>% arrange(lan)
+dim(sig_results)
+head(sig_results, 20)
+```
+
+In the aggregated gene-level analysis, there are `r dim(sig_results)[1]` genes with an aggregated p-value <= 0.05
+
+# Visualizing those results
+
+Let's take the most significantly differentially expressed gene. I can't use the sleuth `plot_bootstrap` function, because that information is based on the transcripts.
+
+Let's take a look at the results for `Zm00001d051103`
+
+```{r}
+merge_results %>% filter(gene == "Zm00001d053675")
+```
+
+plot the bootstrap info for these
+
+```{r}
+plot_bootstrap(leaf_so, "Zm00001d053675_T001", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so, "Zm00001d053675_T002", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so, "Zm00001d053675_T003", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so, "Zm00001d053675_T004", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so, "Zm00001d053675_T005", units="est_counts", color_by="cultivar")
+```
+
+```{r}
+plot_bootstrap(leaf_so, "Zm00001d044099_T001", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so, "Zm00001d044099_T002", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so, "Zm00001d044099_T004", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so, "Zm00001d044099_T005", units="est_counts", color_by="cultivar")
+```
+
+```{r, warning=FALSE}
+sig_results[5000,] #Zm00001d009513
+merge_results %>% filter(gene == "Zm00001d009513")
+
+plot_bootstrap(leaf_so, "Zm00001d009513_T001", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so, "Zm00001d009513_T002", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so, "Zm00001d009513_T003", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so, "Zm00001d009513_T004", units="est_counts", color_by="cultivar")
+```
+
+
+Next step: sum the counts of all the transcripts to get a gene-level estimated counts and graph that.
+

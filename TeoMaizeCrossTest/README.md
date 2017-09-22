@@ -6,11 +6,8 @@ Paper found here: http://journals.plos.org/plosgenetics/article?id=10.1371/journ
 
 Lemmon et al. made crosses between teosinte inbred lines and maize inbred lines.
 
-I'm downloading some of the F1 RNA-Seq data, and working on the analysis pipeline.
-
-Data information
+Download data from SRA:
 
 SRA project: https://www.ncbi.nlm.nih.gov/bioproject/PRJNA262181
-
-
+GEO: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE61810
 
