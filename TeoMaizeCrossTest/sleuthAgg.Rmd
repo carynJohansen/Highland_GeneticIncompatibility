@@ -5,11 +5,6 @@ date: "9/22/2017"
 output: html_document
 ---
 
-**to do's**
-
-- design matrices
-- add all the est_counts for each gene up, and do limma on those counts (don't need the bootstrap values)
-
 # Introduction
 
 
