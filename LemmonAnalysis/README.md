@@ -9,5 +9,10 @@ Lemmon et al. made crosses between teosinte inbred lines and maize inbred lines.
 Download data from SRA:
 
 SRA project: https://www.ncbi.nlm.nih.gov/bioproject/PRJNA262181
+
 GEO: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE61810
+
+# Analysis
+
+For differential gene expression analysis, see limmaDE.Rmd
 
