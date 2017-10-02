@@ -28,7 +28,7 @@ outdir="/home/caryn89/Projects/Highland_GeneticIncompatibility/TeoMaizeCrossTest
 
 #fastq-dump --outdir data/raw --gzip --skip-technical --readids --read-filter pass --dumpbase --split-files --clip $srr
 
-fastq-dump --outdir data/raw -gzip --skip-technical --readids --read-filter pass --dumpbase --clip -fasta $srr
+fastq-dump --outdir data/raw --gzip --skip-technical --readids --read-filter pass --dumpbase --clip -fasta $srr
 
 exitError=$?
 echo exit error $exitError
