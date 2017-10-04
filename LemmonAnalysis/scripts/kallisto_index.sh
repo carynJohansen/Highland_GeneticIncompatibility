@@ -19,9 +19,9 @@ kallisto version
 
 ## DATA
 
-cdna="/home/caryn89/genomes/maize_cdna_v4/Zea_mays.AGPv4.cdna.T01filtered.fa"
+cdna="/home/caryn89/genomes/maize_cdna_v3/Zea_mays.AGPv3.cdna.all.fa.gz"
 
-idx="/home/caryn89/genomes/maize_cdna_v4/Zea_mays.AGPv4.cdna.T01filtered.idx"
+idx="/home/caryn89/genomes/maize_cdna_v3/Zea_mays.AGPv3.cdna.all.fa.idx"
 
 
 ## MAIN

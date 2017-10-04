@@ -150,6 +150,7 @@ gene_counts <- do.call(cbind, ab_list)
 Long data frames:
 
 ```{r}
+rm(g, i)
 gene_count_long <- gene_counts
 gene_count_long$gene <- rownames(gene_counts)
 gene_count_long <- reshape2::melt(gene_count_long)
@@ -213,6 +214,8 @@ reduced_B73
 ## TPM
 
 #### Create DGE object
+
+Possibly need a filtering step here.
 
 ```{r}
 library(edgeR)
@@ -284,6 +287,20 @@ Check out pvalues
 hist(tpm_fit_TIL01$P.Value, breaks= 100)
 hist(p.adjust(tpm_fit_TIL01$P.Value, method = "BH"), breaks=100)
 ```
+
+what is that weird peak?
+
+```{r}
+tpm_fit_TIL01[which(tpm_fit_TIL01$P.Value > 0.7 & tpm_fit_TIL01 < 0.8),]
+hist(tpm_fit_TIL01[which(tpm_fit_TIL01$P.Value > 0.7 & tpm_fit_TIL01 < 0.8),]$P.Value)
+```
+
+Zm00001d052931
+```{r}
+gene_tpm_long %>% filter(gene == "Zm00001d052931") %>% ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle("Zm00001d052931")
+```
+
 
 ```{r}
 gene_tpm_long %>% filter(gene == tpm_TIL01_top[1,]$gene) %>% ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") +
