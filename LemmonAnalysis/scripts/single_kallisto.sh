@@ -1,9 +1,9 @@
 #!/bin/bash -l
 
-#SBATCH -D /home/caryn89/Projects/Highland_GeneticIncompatibility/TeoMaizeCrossTest
+#SBATCH -D /home/caryn89/Projects/Highland_GeneticIncompatibility/LemmonAnalysis
 #SBATCH -J SRR1586620 
-#SBATCH -o /home/caryn89/Projects/Highland_GeneticIncompatibility/TeoMaizeCrossTest/logs/single_kal_%j.out
-#SBATCH -e /home/caryn89/Projects/Highland_GeneticIncompatibility/TeoMaizeCrossTest/logs/single_kal_%j.out
+#SBATCH -o /home/caryn89/Projects/Highland_GeneticIncompatibility/LemmonAnalysis/logs/single_kal_%j.out
+#SBATCH -e /home/caryn89/Projects/Highland_GeneticIncompatibility/LemmonAnalysis/logs/single_kal_%j.out
 #SBATCH --time=9:00:00
 #SBATCH --mem=50000
 

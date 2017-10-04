@@ -1,9 +1,9 @@
 #!/bin/bash -l
 
-#SBATCH -D /home/caryn89/Projects/Highland_GeneticIncompatibility/TeoMaizeCrossTest
-#SBATCH -J T01_kallisto
-#SBATCH -o /home/caryn89/Projects/Highland_GeneticIncompatibility/TeoMaizeCrossTest/logs/T01_kallisto_%j.out
-#SBATCH -e /home/caryn89/Projects/Highland_GeneticIncompatibility/TeoMaizeCrossTest/logs/T01_kallisto_%j.out
+#SBATCH -D /home/caryn89/Projects/Highland_GeneticIncompatibility/LemmonAnalysis
+#SBATCH -J kallisto
+#SBATCH -o /home/caryn89/Projects/Highland_GeneticIncompatibility/LemmonAnalysis/logs/T01_kallisto_%j.out
+#SBATCH -e /home/caryn89/Projects/Highland_GeneticIncompatibility/LemmonAnalysis/logs/T01_kallisto_%j.out
 #SBATCH --time=9:00:00
 #SBATCH --mem=50000
 #SBATCH --array=1-13
@@ -24,7 +24,7 @@ srrFile="srr_numbers.txt"
 
 srr=$(awk -v var="$SLURM_ARRAY_TASK_ID" 'FNR == var {print}' $srrFile)
 
-idx="/home/caryn89/genomes/maize_cdna_v4/Zea_mays.AGPv4.cdna.T01filtered.idx"
+idx="/home/caryn89/genomes/maize_cdna_v4/Zea_mays.AGPv4.cdna.idx"
 fastq=$srr\_pass\_1.fastq.gz
 
 ## MAIN
@@ -35,9 +35,9 @@ echo $SLURM_JOB_ID $SLURM_ARRAY_TASK_ID $srr $fastq $idx >> kallisto_info.txt
 
 quant_start=`date +%s`
 
-mkdir data/processed/$srr.2
+mkdir data/processed/v4/$srr
 
-kallisto quant -i $idx -o data/processed/$srr.2 -b 50 --single -l 101 -s 20 data/raw/$fastq
+kallisto quant -i $idx -o data/processed/v4/$srr -b 50 --single -l 101 -s 20 data/raw/$fastq
 err=$?
 echo kallisto error: $err
 

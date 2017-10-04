@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
-#SBATCH -D /home/caryn89/Projects/Highland_GeneticIncompatibility/TeoMaizeCrossTest/ 
-#SBATCH -o /home/caryn89/Projects/Highland_GeneticIncompatibility/TeoMaizeCrossTest/logs/sra-dump-%j.out
-#SBATCH -e /home/caryn89/Projects/Highland_GeneticIncompatibility/TeoMaizeCrossTest/logs/sra-dump-%j.out
+#SBATCH -D /home/caryn89/Projects/Highland_GeneticIncompatibility/LemmonAnalysis/ 
+#SBATCH -o /home/caryn89/Projects/Highland_GeneticIncompatibility/LemmonAnalysis/logs/sra-dump-%j.out
+#SBATCH -e /home/caryn89/Projects/Highland_GeneticIncompatibility/LemmonAnalysis/logs/sra-dump-%j.out
 #SBATCH -J fasta
 #SBATCH --time=5:00:00
 #SBATCH --mail-type=FAIL
