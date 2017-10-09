@@ -132,7 +132,7 @@ Running sleuth at the transcript level (all transcripts)
 
 Generate the sleuth object
 
-```{r, eval=FALSE}
+```{r}
 leaf_so_B73 <- sleuth_prep(meta_leaf, full_leaf_model, extra_bootstrap_summary = TRUE)
 ```
 
@@ -142,7 +142,7 @@ Fit the model. This is done differently between the walk through and the code in
 
 The "full" model fit is to smooth the raw kallisto abundance estimates using a linear model. Using a model that represents the experimental parameters (`cultivars`)
 
-```{r, eval=FALSE}
+```{r}
 leaf_so_B73 <- sleuth_fit(leaf_so_B73, formula = ~ cultivar, fit_name = 'full')
 ```
 
@@ -150,25 +150,25 @@ The second fit to a reduced model presumes the abundances are equal between the 
 
 Fit 1: Look for significant difference between the full model and B73 - a significant result here would indicate that there is a difference between the F1 cross and B73
 
-```{r, eval=FALSE}
+```{r}
 reduced_TIL01
 leaf_so_B73 <- sleuth_fit(leaf_so_B73, formula = reduced_TIL01 , fit_name = 'reduced_b73')
 ```
 
 Test the fits using a likelihood ratio test for two models. The reduced model is the null model, and the full is the alternate model.
-```{r, eval=FALSE}
+```{r}
 leaf_so_B73 <- sleuth_lrt(leaf_so_B73, null_model = 'reduced_b73', alt_model = 'full')
 ```
 
 Extract the LRT test results from the sleuth object
 
-```{r, eval=FALSE}
+```{r}
 sleuth_table_B73 <- sleuth_results(leaf_so_B73, test='reduced_b73:full', test_type = 'lrt', show_all=FALSE)
 ```
 
 the significant transcripts
 
-```{r, eval=FALSE}
+```{r}
 sleuth_sig_B73 <- dplyr::filter(sleuth_table_B73, qval<=0.05)
 dim(sleuth_sig_B73)
 head(sleuth_sig_B73, 20)
@@ -178,21 +178,21 @@ Here, there are XX transcripts with a q-values <= 0.05.
 
 Some graphs:
 
-```{r, eval=FALSE}
-plot_bootstrap(leaf_so, sleuth_sig_B73[1,]$target_id, units="est_counts", color_by="cultivar")
-plot_bootstrap(leaf_so, sleuth_sig_B73[2,]$target_id, units="est_counts", color_by="cultivar")
-plot_bootstrap(leaf_so, sleuth_sig_B73[3,]$target_id, units="est_counts", color_by="cultivar")
-plot_bootstrap(leaf_so, sleuth_sig_B73[4,]$target_id, units="est_counts", color_by="cultivar")
+```{r}
+plot_bootstrap(leaf_so_B73, sleuth_sig_B73[1,]$target_id, units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so_B73, sleuth_sig_B73[2,]$target_id, units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so_B73, sleuth_sig_B73[3,]$target_id, units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so_B73, sleuth_sig_B73[4,]$target_id, units="est_counts", color_by="cultivar")
 ```
 
 Some less sig output
 
-```{r, eval=FALSE}
-plot_bootstrap(leaf_so, sleuth_sig_B73[500,]$target_id, units="est_counts", color_by="cultivar")
-plot_bootstrap(leaf_so, sleuth_sig_B73[600,]$target_id, units="est_counts", color_by="cultivar")
-plot_bootstrap(leaf_so, sleuth_sig_B73[700,]$target_id, units="est_counts", color_by="cultivar")
-plot_bootstrap(leaf_so, sleuth_sig_B73[1900,]$target_id, units="est_counts", color_by="cultivar")
-plot_bootstrap(leaf_so, sleuth_sig_B73[1500,]$target_id, units="est_counts", color_by="cultivar")
+```{r}
+plot_bootstrap(leaf_so_B73, sleuth_sig_B73[500,]$target_id, units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so_B73, sleuth_sig_B73[600,]$target_id, units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so_B73, sleuth_sig_B73[700,]$target_id, units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so_B73, sleuth_sig_B73[1900,]$target_id, units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so_B73, sleuth_sig_B73[1500,]$target_id, units="est_counts", color_by="cultivar")
 ```
 
 ## Difference between TIL01 and F1
@@ -223,7 +223,7 @@ Using the Lancaster method, which aggregates p-values while weighting them. Here
 
 ## functions
 
-```{r}
+```{r, eval=FALSE}
 MinMethod <- function(pvalues)
 {
 	if(length(pvalues) == 0)
@@ -279,7 +279,7 @@ lts <- function(pvalue, weight)
 
 Get transcript IDs to add a column of gene and transcript information to sleuth results
 
-```{r}
+```{r, eval=FALSE}
 abundance <- read.table("data/fullTranscript/SRR1586618/abundance.tsv", header=T, sep="\t")
 transcripts <- as.character(abundance$target_id)
 transcript_split <- strsplit(transcripts, "_")
@@ -329,16 +329,16 @@ merge_results %>% filter(gene == "Zm00001d029353")
 plot the bootstrap info for these
 
 ```{r, eval=FALSE}
-plot_bootstrap(leaf_so, "Zm00001d029353_T001", units="est_counts", color_by="cultivar")
-plot_bootstrap(leaf_so, "Zm00001d029353_T002", units="est_counts", color_by="cultivar")
-plot_bootstrap(leaf_so, "Zm00001d029353_T004", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so_TIL01, "Zm00001d029353_T001", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so_TIL01, "Zm00001d029353_T002", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so_TIL01, "Zm00001d029353_T004", units="est_counts", color_by="cultivar")
 ```
 
 ```{r, eval=FALSE}
-plot_bootstrap(leaf_so, "Zm00001d026586_T001", units="est_counts", color_by="cultivar")
-plot_bootstrap(leaf_so, "Zm00001d026586_T002", units="est_counts", color_by="cultivar")
-plot_bootstrap(leaf_so, "Zm00001d026586_T003", units="est_counts", color_by="cultivar")
-plot_bootstrap(leaf_so, "Zm00001d026586_T004", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so_TIL01, "Zm00001d026586_T001", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so_TIL01, "Zm00001d026586_T002", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so_TIL01, "Zm00001d026586_T003", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so_TIL01, "Zm00001d026586_T004", units="est_counts", color_by="cultivar")
 ```
 
 ```{r, warning=FALSE, eval=FALSE}
@@ -346,10 +346,10 @@ sig_results[5000,] #Zm00001d052108
 
 merge_results %>% filter(gene == "Zm00001d052108")
 
-plot_bootstrap(leaf_so, "Zm00001d052108_T001", units="est_counts", color_by="cultivar")
-plot_bootstrap(leaf_so, "Zm00001d052108_T003", units="est_counts", color_by="cultivar")
-plot_bootstrap(leaf_so, "Zm00001d052108_T005", units="est_counts", color_by="cultivar")
-plot_bootstrap(leaf_so, "Zm00001d052108_T006", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so_TIL01, "Zm00001d052108_T001", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so_TIL01, "Zm00001d052108_T003", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so_TIL01, "Zm00001d052108_T005", units="est_counts", color_by="cultivar")
+plot_bootstrap(leaf_so_TIL01, "Zm00001d052108_T006", units="est_counts", color_by="cultivar")
 ```
 
 
@@ -371,7 +371,7 @@ gene_counts <- abundance %>% group_by(gene) %>% summarise(est_counts_sum=sum(est
 
 ### Create data matrix
 
-```{r}
+```{r, eval=FALSE}
 file <- "abundance.tsv"
 
 full_file <- paste(res_leaf$kal_results, file, sep="/")
@@ -409,7 +409,7 @@ for(i in 1:length(full_file)) {
 
 then create a matrix of counts, where the row are genes, and the columns are the different samples
 
-```{r}
+```{r, eval=FALSE}
 gene_count <- do.call(cbind, ab_list)
 head(gene_count)
 
@@ -425,24 +425,24 @@ gene_count_long <- gene_count_long %>% left_join(meta_leaf2, by = "sample")
 
 Filter genes where there are not more at 10 counts in all the samples
 
-```{r}
+```{r, eval=FALSE}
 genes_f <- gene_count[rowSums(gene_count) > 5,]
 filtered <- nrow(gene_count) - nrow(genes_f)
 filtered
 ```
 
-filtered out `r filtered` genes
+filtered out XX genes
 
 ## voom
 
 Design matrices
 
-```{r}
+```{r, eval=FALSE}
 full_leaf_model
 ```
 
 
-```{r}
+```{r, eval=FALSE}
 library(limma)
 
 v <- voom(genes_f, design = full_leaf_model, plot=TRUE)
@@ -450,14 +450,14 @@ v <- voom(genes_f, design = full_leaf_model, plot=TRUE)
 
 Fit using limma
 
-```{r}
+```{r, eval=FALSE}
 fit <- lmFit(v, design = full_leaf_model)
 fit <- eBayes(fit)
 top_leaf <- topTable(fit, confint = TRUE)
 top_leaf
 ```
 
-```{r}
+```{r, eval=FALSE}
 Zm00001d011183 <- gene_count_long %>% filter(gene == "Zm00001d011183")
 Zm00001d011183 %>% ggplot() +
   geom_bar(aes(x=sample, y=est_count, fill=cultivar), stat = "identity") +
@@ -474,13 +474,13 @@ results[results$gene == "Zm00001d011183",]
 
 This model is designed so TIL01 expression mean is assumed to be the same as the F1 mean expression
 
-```{r}
+```{r, eval=FALSE}
 reduced_B73
 ```
 
 running voom then limma
 
-```{r}
+```{r, eval=FALSE}
 v <- voom(genes_f, design = reduced_B73, plot=TRUE)
 fit <- lmFit(v, design = reduced_B73)
 fit <- eBayes(fit)
@@ -488,7 +488,7 @@ top_leaf <- topTable(fit, confint = TRUE)
 top_leaf
 ```
 
-```{r}
+```{r, eval=FALSE}
 Zm00001d003411 <- gene_count_long %>% filter(gene == "Zm00001d003411")
 Zm00001d003411 %>% ggplot() +
   geom_bar(aes(x=sample, y=est_count, fill=cultivar), stat = "identity") +
@@ -499,13 +499,13 @@ Zm00001d003411 %>% ggplot() +
 
 This model is designed so B73 expression mean is assumed to be the same as the F1 mean expression
 
-```{r}
+```{r, eval=FALSE}
 reduced_TIL01
 ```
 
 running voom then limma
 
-```{r}
+```{r, eval=FALSE}
 v <- voom(genes_f, design = reduced_TIL01, plot=TRUE)
 fit <- lmFit(v, design = reduced_TIL01)
 #contrasts fit for LRT
@@ -515,7 +515,7 @@ top_leaf <- topTable(fit, confint = TRUE)
 top_leaf
 ```
 
-```{r}
+```{r, eval=FALSE}
 Zm00001d016070 <- gene_count_long %>% filter(gene == "Zm00001d016070")
 Zm00001d016070 %>% ggplot() +
   geom_bar(aes(x=sample, y=est_count, fill=cultivar), stat = "identity") +
@@ -526,7 +526,7 @@ Zm00001d016070 %>% ggplot() +
 
 Using the aggregated gene count data created in the limma section for the sleuth analysis. This 
 
-```{r}
+```{r, eval=FALSE}
 so_genes <- sleuth_prep(meta_leaf, full_model = ~ cultivar, target_mapping = df_transcripts, aggregation_column = "gene", extra_bootstrap_summary = TRUE)
 plot_pca(so_genes, color_by = 'cultivar', text_labels = TRUE)
 plot_loadings(so_genes, pc_input = 1, scale=T)
@@ -539,7 +539,7 @@ Continuing on with the anaylysis for finding differential expression
 
 First, fit to the null model.
 
-```{r}
+```{r, eval=FALSE}
 so_genes <- sleuth_fit(so_genes, formula = full_leaf_model, fit_name = 'full')
 so_genes <- sleuth_fit(so_genes, formula = reduced_B73, fit_name = 'reduceTIL') #F1 and TIL01 have the same mean, B73 is different
 so_genes <- sleuth_fit(so_genes, formula = reduced_TIL01, fit_name = 'reduceB73') #F1 and B73 have the same mean, TIL01 is different
@@ -547,7 +547,7 @@ so_genes <- sleuth_fit(so_genes, formula = reduced_TIL01, fit_name = 'reduceB73'
 
 look at the models:
 
-```{r}
+```{r, eval=FALSE}
 models(so_genes)
 ```
 
@@ -558,13 +558,13 @@ Likelihood ratio test, one for full:reduceTIL and one for full:reducedB73
 
 A significant result from this analysis indicates that the full model is a better fit than the null model. Meaning that the model that includes the teosinte cross is a better fit. 
 
-```{r}
+```{r, eval=FALSE}
 so_genes_fullB73 <- sleuth_lrt(so_genes, null_model = 'reduceTIL', alt_model = 'full')
 ```
 
 extract the LRT results
 
-```{r}
+```{r, eval=FALSE}
 table_fullB73 <- sleuth_results(so_genes_fullB73, test = 'reduceTIL:full', test_type = 'lrt', show_all = FALSE)
 #filter results
 fullB73_top <- dplyr::filter(table_fullB73, qval <= 0.05)
@@ -572,7 +572,7 @@ dim(fullB73_top)
 head(fullB73_top)
 ```
 
-```{r}
+```{r, eval=FALSE}
 hist(table_fullB73$qval, breaks = 100)
 hist(table_fullB73$test_stat, breaks = 100)
 ```
@@ -580,7 +580,7 @@ hist(table_fullB73$test_stat, breaks = 100)
 Effect size using EdgeR
 
 Fit a general linear model to the full design matrix
-```{r}
+```{r, eval=FALSE}
 library(edgeR)
 y <- DGEList(counts = gene_count, group = as.factor(meta_leaf$sample))
 y <- calcNormFactors(y)
@@ -590,7 +590,7 @@ fit <- glmFit(y, design = full_leaf_model)
 
 Perform Likelihood ratio test on a reduced model, which reduces the TIL01 coefficient to 0
 
-```{r}
+```{r, eval=FALSE}
 lrt_B73 <- glmLRT(fit, coef=c("cultivarTIL01")) #setting the TIL01 coefficients equal to zero, meaning they are the same at F1
 lrt_B73_table <- lrt_B73$table
 lrt_B73_table$gene <- rownames(lrt_B73_table)
@@ -604,7 +604,7 @@ hist(sig_B73_lrt$logFC)
 
 Merge my significant sleuth results with my edgeR results.
 
-```{r}
+```{r, eval=FALSE}
 B73_merge_results <- merge(fullB73_top, lrt_B73_table, by.x = "target_id", by.y="gene")
 dim(B73_merge_results)
 B73_merge_results <- dplyr::arrange(B73_merge_results, qval)
@@ -613,7 +613,7 @@ head(B73_merge_results)
 
 Visualize some of the results
 
-```{r}
+```{r, eval=FALSE}
 gene_count_long %>% filter(gene==B73_merge_results[1,]$target_id) %>% ggplot() + 
   geom_bar(aes(x=sample, y=est_count, fill=cultivar), stat="identity") + theme(axis.text.x = element_text(angle=45, hjust=1)) + ggtitle(B73_merge_results[1,]$target_id)
 gene_count_long %>% filter(gene==B73_merge_results[2,]$target_id) %>% ggplot() + 
@@ -629,14 +629,14 @@ The results here should be significant difference between the F1 cross and TIL01
 
 Results here should show where F1 cross is different from B73
 
-```{r}
+```{r, eval=FALSE}
 models(so_genes)
 so_genes_fullTIL01 <- sleuth_lrt(so_genes, null_model = 'reduceB73', alt_model = 'full')
 ```
 
 extract the LRT results
 
-```{r}
+```{r, eval=FALSE}
 table_fullTIL01 <- sleuth_results(so_genes_fullTIL01, test = 'reduceB73:full', test_type = 'lrt', show_all = FALSE)
 #filter results
 fullTIL01_top <- dplyr::filter(table_fullTIL01, qval <= 0.05)
@@ -646,7 +646,7 @@ head(fullTIL01_top)
 
 Null model that reduces TIL01 to zero
 
-```{r}
+```{r, eval=FALSE}
 lrt_TIL01 <- glmLRT(fit, coef=c("cultivarB73")) #setting the TIL01 coefficients equal to zero, meaning they are the same at F1
 lrt_TIL01_table <- lrt_TIL01$table
 lrt_TIL01_table$gene <- rownames(lrt_TIL01_table)
@@ -660,7 +660,7 @@ hist(sig_TIL01_lrt$logFC)
 
 get log fold changes from edgeR
 
-```{r}
+```{r, eval=FALSE}
 lrt_TIL01 <- glmLRT(fit, coef=c("cultivarB73")) #setting the TIL01 coefficients equal to zero, meaning they are the same at F1
 lrt_TIL01_table <- lrt_TIL01$table
 lrt_TIL01_table$gene <- rownames(lrt_TIL01_table)
@@ -674,14 +674,14 @@ hist(sig_TIL01_lrt$logFC)
 
 Merge sleuth LRT results with edgeR to get flog fold changes
 
-```{r}
+```{r, eval=FALSE}
 TIL01_merge_results <- merge(fullTIL01_top, lrt_TIL01_table, by.x = "target_id", by.y="gene")
 dim(TIL01_merge_results)
 TIL01_merge_results <- dplyr::arrange(TIL01_merge_results, qval)
 head(TIL01_merge_results)
 ```
 
-```{r}
+```{r, eval=FALSE}
 gene_count_long %>% filter(gene==TIL01_merge_results[1,]$target_id) %>% ggplot() + 
   geom_bar(aes(x=sample, y=est_count, fill=cultivar), stat="identity") + theme(axis.text.x = element_text(angle=45, hjust=1)) + ggtitle(TIL01_merge_results[1,]$target_id)
 gene_count_long %>% filter(gene==TIL01_merge_results[2,]$target_id) %>% ggplot() + 
@@ -694,7 +694,7 @@ gene_count_long %>% filter(gene==TIL01_merge_results[1000,]$target_id) %>% ggplo
 
 Which genes in the F1 cross expression are different from the null model, and different from both B73 and TIL01
 
-```{r}
+```{r, eval=FALSE}
 cross_merge <- merge(B73_merge_results, TIL01_merge_results, by="target_id")
 dim(cross_merge)
 
@@ -702,11 +702,11 @@ cross_merge <- dplyr::arrange(cross_merge, qval.x)
 head(cross_merge)
 ```
 
-```{r}
+```{r, eval=FALSE}
 cross_merge %>% ggplot() + geom_point(aes(x=qval.x, y=qval.y))
 ```
 
-```{r}
+```{r, eval=FALSE}
 gene_count_long %>% filter(gene==cross_merge[1,]$target_id) %>% ggplot() + geom_bar(aes(x=sample, y=est_count, fill=cultivar), stat = "identity") +theme(axis.text.x = element_text(angle = 45, hjust = 1)) +ggtitle(cross_merge[1,]$target_id)
 
 gene_count_long %>% filter(gene==cross_merge[2,]$target_id) %>% ggplot() + geom_bar(aes(x=sample, y=est_count, fill=cultivar), stat = "identity") +theme(axis.text.x = element_text(angle = 45, hjust = 1)) +ggtitle(cross_merge[2,]$target_id)
@@ -719,7 +719,7 @@ gene_count_long %>% filter(gene==cross_merge[3000,]$target_id) %>% ggplot() + ge
 ```
 
 
-```{r}
+```{r, eval=FALSE}
 cross_merge %>% ggplot() + geom_point(aes(x=logFC.x, y=logFC.y)) + 
   geom_abline(slope=1, intercept = 0, color="red") +
   xlab("logFC between F1 and TIL01") + ylab("logFC between F1 and B73")
@@ -728,24 +728,24 @@ cross_merge %>% ggplot() + geom_point(aes(x=logFC.x, y=logFC.y)) +
 Example of opposit Fold Changes
 
 Zm00001d003567
-```{r}
+```{r, eval=FALSE}
 gene_count_long %>% filter(gene=="Zm00001d003567") %>% ggplot() + geom_bar(aes(x=sample, y=est_count, fill=cultivar), stat = "identity") +theme(axis.text.x = element_text(angle = 45, hjust = 1)) +ggtitle("Zm00001d003567")
 ```
 
 Zm00001d052684
-```{r}
+```{r, eval=FALSE}
 gene_count_long %>% filter(gene=="Zm00001d052684") %>% ggplot() + geom_bar(aes(x=sample, y=est_count, fill=cultivar), stat = "identity") +theme(axis.text.x = element_text(angle = 45, hjust = 1)) +ggtitle("Zm00001d052684")
 ```
 
 Both negative fold changes
 
 Zm00001d037779
-```{r}
+```{r, eval=FALSE}
 gene_count_long %>% filter(gene=="Zm00001d037779") %>% ggplot() + geom_bar(aes(x=sample, y=est_count, fill=cultivar), stat = "identity") +theme(axis.text.x = element_text(angle = 45, hjust = 1)) +ggtitle("Zm00001d037779")
 ```
 
 Zm00001d041960
-```{r}
+```{r, eval=FALSE}
 gene_count_long %>% filter(gene=="Zm00001d041960") %>% ggplot() + geom_bar(aes(x=sample, y=est_count, fill=cultivar), stat = "identity") +theme(axis.text.x = element_text(angle = 45, hjust = 1)) +ggtitle("Zm00001d041960")
 ```
 
@@ -753,28 +753,28 @@ gene_count_long %>% filter(gene=="Zm00001d041960") %>% ggplot() + geom_bar(aes(x
 Both positive fold changes
 
 Zm00001d028541
-```{r}
+```{r, eval=FALSE}
 gene_count_long %>% filter(gene=="Zm00001d028541") %>% ggplot() + geom_bar(aes(x=sample, y=est_count, fill=cultivar), stat = "identity") +theme(axis.text.x = element_text(angle = 45, hjust = 1)) +ggtitle("Zm00001d028541")
 ```
 
 Zm00001d054112
-```{r}
+```{r, eval=FALSE}
 gene_count_long %>% filter(gene=="Zm00001d054112") %>% ggplot() + geom_bar(aes(x=sample, y=est_count, fill=cultivar), stat = "identity") +theme(axis.text.x = element_text(angle = 45, hjust = 1)) +ggtitle("Zm00001d054112")
 ```
 
 Zm00001d053824
-```{r}
+```{r, eval=FALSE}
 gene_count_long %>% filter(gene=="Zm00001d053824") %>% ggplot() + geom_bar(aes(x=sample, y=est_count, fill=cultivar), stat = "identity") +theme(axis.text.x = element_text(angle = 45, hjust = 1)) +ggtitle("Zm00001d053824")
 ```
 
 
 Zm00001d048073
-```{r}
+```{r, eval=FALSE}
 gene_count_long %>% filter(gene=="Zm00001d048073") %>% ggplot() + geom_bar(aes(x=sample, y=est_count, fill=cultivar), stat = "identity") +theme(axis.text.x = element_text(angle = 45, hjust = 1)) +ggtitle("Zm00001d048073")
 ```
 
 Zm00001d018107
-```{r}
+```{r, eval=FALSE}
 gene_count_long %>% filter(gene=="Zm00001d018107") %>% ggplot() + geom_bar(aes(x=sample, y=est_count, fill=cultivar), stat = "identity") +theme(axis.text.x = element_text(angle = 45, hjust = 1)) +ggtitle("Zm00001d018107")
 ```
 

@@ -34,7 +34,6 @@ package found at: http://bioconductor.org/packages/release/bioc/html/limma.html
 
 # Setup
 
-
 ```{r}
 library(limma)
 library(tidyverse)
@@ -117,6 +116,7 @@ gene_tpm <- do.call(cbind, ab_list)
 Create data matrix with estimated counts:
 
 ```{r}
+rm(g, i, ab, sample, ab_list)
 ab_list <- list()
 
 for(i in 1:length(full_file)) {
@@ -145,18 +145,18 @@ for(i in 1:length(full_file)) {
 }
 
 gene_counts <- do.call(cbind, ab_list)
+rm(g, i, ab, sample, ab_list)
 ```
 
 Long data frames:
 
 ```{r}
-rm(g, i)
 gene_count_long <- gene_counts
 gene_count_long$gene <- rownames(gene_counts)
 gene_count_long <- reshape2::melt(gene_count_long)
 colnames(gene_count_long) <- c("gene", "sample", "est_count")
 
-meta_leaf2 <- meta_leaf %>% select(-path)
+meta_leaf2 <- meta_leaf %>% dplyr::select(-path)
 gene_count_long <- gene_count_long %>% left_join(meta_leaf2, by = "sample")
 
 gene_tpm_long <- gene_tpm
@@ -172,6 +172,36 @@ Reorder sample for plotting
 gene_tpm_long$sample <- as.factor(gene_tpm_long$sample)
 gene_tpm_long$sample <- factor(gene_tpm_long$sample, 
                                levels = c("SRR1586888", "SRR1586889", "SRR1586766", "SRR1586767", "SRR1586768","SRR1586898","SRR1586899"))
+
+gene_count_long$sample <- as.factor(gene_count_long$sample)
+gene_count_long$sample <- factor(gene_count_long$sample, 
+                               levels = c("SRR1586888", "SRR1586889", "SRR1586766", "SRR1586767", "SRR1586768","SRR1586898","SRR1586899"))
+```
+
+# Functions
+
+To plot the tpm of a given gene.
+
+```{r}
+plot_gene_tpm <- function(gene_to_plot) {
+  #gene is a character string
+  gene_tpm_long %>% filter(gene == gene_to_plot) %>% ggplot() + 
+    geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(gene_to_plot)
+}
+
+plot_gene_counts <-function(gene_to_plot) {
+  #gene is a character string
+  gene_count_long %>% filter(gene == gene_to_plot) %>% ggplot() + 
+    geom_bar(aes(x=sample, y=est_counts, fill=cultivar), stat = "identity") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(gene_to_plot)
+}
+```
+
+Save environment for loading later
+
+```{r}
+save(gene_count_long, gene_counts, gene_tpm_long, gene_tpm, meta_leaf, plot_gene_tpm, plot_gene_counts, file="limma_data.RData")
 ```
 
 
@@ -260,12 +290,9 @@ hist(tpm_fit_B73$adj.P.Val, breaks = 100)
 
 
 ```{r}
-gene_tpm_long %>% filter(gene == tpm_B73_top[1,]$gene) %>% ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(tpm_B73_top[1,]$gene)
-gene_tpm_long %>% filter(gene == tpm_B73_top[2,]$gene) %>% ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(tpm_B73_top[2,]$gene)
-gene_tpm_long %>% filter(gene == tpm_B73_top[500,]$gene) %>% ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(tpm_B73_top[500,]$gene)
+plot_gene(tpm_B73_top[1,]$gene)
+plot_gene(tpm_B73_top[2,]$gene)
+plot_gene(tpm_B73_top[3,]$gene)
 ```
 
 #### Contrast for TIL01
@@ -286,29 +313,26 @@ Check out pvalues
 ```{r}
 hist(tpm_fit_TIL01$P.Value, breaks= 100)
 hist(p.adjust(tpm_fit_TIL01$P.Value, method = "BH"), breaks=100)
+hist(tpm_fit_TIL01$adj.P.Val, breaks=100)
 ```
 
 what is that weird peak?
 
 ```{r}
-tpm_fit_TIL01[which(tpm_fit_TIL01$P.Value > 0.7 & tpm_fit_TIL01 < 0.8),]
-hist(tpm_fit_TIL01[which(tpm_fit_TIL01$P.Value > 0.7 & tpm_fit_TIL01 < 0.8),]$P.Value)
+tpm_fit_TIL01[which(tpm_fit_TIL01$P.Value > 0.7 & tpm_fit_TIL01 < 0.8),] 
+hist(tpm_fit_TIL01[which(tpm_fit_TIL01$P.Value > 0.73 & tpm_fit_TIL01 < 0.77),]$P.Value)
 ```
 
 Zm00001d052931
 ```{r}
-gene_tpm_long %>% filter(gene == "Zm00001d052931") %>% ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle("Zm00001d052931")
+plot_gene("Zm00001d052931")
 ```
 
 
 ```{r}
-gene_tpm_long %>% filter(gene == tpm_TIL01_top[1,]$gene) %>% ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(tpm_TIL01_top[1,]$gene)
-gene_tpm_long %>% filter(gene == tpm_TIL01_top[2,]$gene) %>% ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(tpm_TIL01_top[2,]$gene)
-gene_tpm_long %>% filter(gene == tpm_TIL01_top[500,]$gene) %>% ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(tpm_TIL01_top[500,]$gene)
+plot_gene(tpm_TIL01_top[1,]$gene)
+plot_gene(tpm_TIL01_top[2,]$gene)
+plot_gene(tpm_TIL01_top[500,]$gene)
 ```
 
 #### merge contrast results
@@ -352,25 +376,21 @@ head(lfc)
 
 
 ```{r}
-gene_tpm_long %>% filter(gene == "Zm00001d024522") %>% ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle("Zm00001d024522")
+plot_gene("Zm00001d024522")
 gene_tpm_long %>% filter(gene == "Zm00001d024522")
 lfc %>% filter(gene == "Zm00001d024522")
 ```
 
 Zm00001d033389
 ```{r}
-gene_tpm_long %>% filter(gene == "Zm00001d033389") %>% ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle("Zm00001d033389")
+plot_gene("Zm00001d033389")
 gene_tpm_long %>% filter(gene == "Zm00001d033389")
 lfc %>% filter(gene == "Zm00001d033389")
 ```
 
 Zm00001d030028
 ```{r}
-gene_tpm_long %>% filter(gene == "Zm00001d030028") %>% ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle("Zm00001d030028") +
-  ylab("transcripts per million")
+plot_gene("Zm00001d030028")
 gene_tpm_long %>% filter(gene == "Zm00001d030028")
 lfc %>% filter(gene == "Zm00001d030028")
 ```
@@ -379,36 +399,41 @@ Opposing logFC
 
 Zm00001d005583
 ```{r}
-gene_tpm_long %>% filter(gene == "Zm00001d005583") %>% ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle("Zm00001d005583")
+plot_gene("Zm00001d005583")
 lfc %>% filter(gene == "Zm00001d005583")
+
+plot_gene("Zm00001d045629")
+plot_gene("Zm00001d037501")
+lfc %>% filter(gene == "Zm00001d037501")
+gene_tpm_long %>% filter(gene == "Zm00001d037501")
 ```
+
+```{r}
+plot_gene("Zm00001d002937")
+```
+
 
 Zm00001d050635
 ```{r}
-gene_tpm_long %>% filter(gene == "Zm00001d050635") %>% ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle("Zm00001d050635")
+plot_gene("Zm00001d050635")
 lfc %>% filter(gene == "Zm00001d050635")
 ```
 
 Zm00001d028541
 ```{r}
-gene_tpm_long %>% filter(gene == "Zm00001d028541") %>% ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle("Zm00001d028541")
+plot_gene("Zm00001d028541")
 lfc %>% filter(gene == "Zm00001d028541")
 ```
 
 Zm00001d052340
 ```{r}
-gene_tpm_long %>% filter(gene == "Zm00001d052340") %>% ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle("Zm00001d052340")
+plot_gene("Zm00001d052340")
 lfc %>% filter(gene == "Zm00001d052340")
 ```
 
 Zm00001d017699
 ```{r}
-gene_tpm_long %>% filter(gene == "Zm00001d017699") %>% ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle("Zm00001d052340")
+plot_gene("Zm00001d017699")
 lfc %>% filter(gene == "Zm00001d017699")
 ```
 
@@ -426,6 +451,15 @@ dim(underDom)
 
 ```{r}
 sum(nrow(overDom), nrow(underDom))/nrow(tpm_results)
+```
+
+
+Additive genes
+
+```{r}
+additive_genes <- lfc %>% filter(logFC.x < 0 & logFC.y > 0 | logFC.x > 0 & logFC.y < 0) 
+dom_genes <- lfc %>% filter(logFC.x < 0 & logFC.y < 0 | logFC.x > 0 & logFC.y > 0) 
+nrow(tpm_results) == (nrow(additive_genes) + nrow(dom_genes))
 ```
 
 
@@ -455,9 +489,8 @@ head(tpm_f1_top)
 ```
 
 ```{r}
-gene_tpm_long %>% filter(gene == "Zm00001d003796") %>% ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity")
-gene_tpm_long %>% filter(gene == "Zm00001d024522") %>% ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity")
-gene_tpm_long %>% filter(gene == "Zm00001d011183") %>% ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity")
+plot_gene("Zm00001d003796")
+plot_gene("Zm00001d011183")
 ```
 
 ```{r}
@@ -476,24 +509,16 @@ tpm_f1_top %>% ggplot() +
 ```
 
 ```{r}
-gene_tpm_long %>% 
-  filter(gene == dunno[1,]$gene)%>% 
-  ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") + ggtitle(dunno[1,]$gene)
-gene_tpm_long %>% 
-  filter(gene == dunno[2,]$gene)%>% 
-  ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") + ggtitle(dunno[2,]$gene)
-gene_tpm_long %>% 
-  filter(gene == dunno[500,]$gene)%>% 
-  ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") + ggtitle(dunno[500,]$gene)
-gene_tpm_long %>% 
-  filter(gene == dunno[5000,]$gene)%>% 
-  ggplot() + geom_bar(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") + ggtitle(dunno[5000,]$gene)
+plot_gene(dunno[1,]$gene)
+plot_gene(dunno[2,]$gene)
+plot_gene(dunno[500,]$gene)
+plot_gene(dunno[5000,]$gene)
 ```
 
 How many genes from this dataset are under and over dominant?
 
 ```{r}
-f1_overDom <- tpm_f1_top %>% filter(cultivarB73 < 0 & cultivarTIL01 < 0)
+f1_overDom <- tpm_f1_top %>% filter(cultivarB73 < 0 & cultivarTIL01 < 0) %>% arrange(cultivarB73)
 f1_underDom <- tpm_f1_top %>% filter(cultivarB73 > 0 & cultivarTIL01 > 0)
 dim(f1_overDom); dim(f1_underDom)
 ```
@@ -504,6 +529,7 @@ Quite a few more genes...
 ggplot() + geom_point(data=f1_overDom, aes(x=cultivarB73, y=cultivarTIL01)) +
   geom_point(data=f1_underDom, aes(x=cultivarB73, y=cultivarTIL01))
 ```
+
 
 
 # Cross reference my significant genes with Lemmon et al regulatory classifications
@@ -537,6 +563,6 @@ convert Lemmon gene column
 ```{r}
 dim(lemmon_leaf)
 lemmon_convert <- genome_convert[genome_convert$v3.gene.ID %in% lemmon_leaf$gene,]
-lemmon_leaf$gene.v4 <- 
+
 ```
 
