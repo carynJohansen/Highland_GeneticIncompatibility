@@ -1,0 +1,32 @@
+==========================================
+SLURM_JOB_ID = 15052896
+SLURM_NODELIST = c10-90
+==========================================
+Module slurm/16.05.8 loaded 
+Module openmpi/2.0.1 loaded 
+Module sratoolkit/2.8.2 loaded 
+Read 9672551 spots for SRR1586620
+Written 9672551 spots for SRR1586620
+exit error 0
+
+===========================================================================
+Job Finished
+
+Name                : fasta
+User                : caryn89
+Partition           : high
+Nodes               : c10-90
+Cores               : 2
+State               : COMPLETED
+Submit              : 2017-09-16T15:35:40
+Start               : 2017-09-16T15:35:42
+End                 : 2017-09-16T15:41:25
+Reserved walltime   : 05:00:00
+Used walltime       : 00:05:43
+Used CPU time       : 00:05:28
+% User (Computation): 99.79%
+% System (I/O)      :  0.21%
+Mem reserved        : 4000M/node
+Max Mem used        : 20.13M (c10-90)
+Max Disk Write      : 386.00M (c10-90)
+Max Disk Read       : 244.00M (c10-90)

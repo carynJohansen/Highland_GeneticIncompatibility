@@ -1,0 +1,30 @@
+==========================================
+SLURM_JOB_ID = 15163078
+SLURM_NODELIST = c11-88
+==========================================
+Module slurm/16.05.8 loaded 
+Module openmpi/2.0.1 loaded 
+
+===========================================================================
+Job Finished
+
+Name                : T01_kallisto
+User                : caryn89
+Partition           : high
+Nodes               : c11-88
+Cores               : 19
+State               : TIMEOUT
+Submit              : 2017-09-19T10:16:57
+Start               : 2017-09-19T10:17:00
+End                 : 2017-09-19T19:17:04
+Reserved walltime   : 09:00:00
+Used walltime       : 09:00:04
+Used CPU time       : --
+% User (Computation): --
+% System (I/O)      : --
+Mem reserved        : 50000M/node
+Max Mem used        : 0.00  ()
+Max Disk Write      : 0.00  ()
+Max Disk Read       : 0.00  ()
+slurmstepd: error: *** JOB 15163078 ON c11-88 CANCELLED AT 2017-09-19T19:17:04 DUE TO TIME LIMIT ***
+Module kallisto/default v0.42.3 loaded 

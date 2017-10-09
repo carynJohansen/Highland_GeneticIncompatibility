@@ -1,0 +1,52 @@
+==========================================
+SLURM_JOB_ID = 15202711
+SLURM_NODELIST = c10-93
+==========================================
+Module slurm/16.05.8 loaded 
+Module openmpi/2.0.1 loaded 
+Module kallisto/default v0.42.3 loaded 
+kallisto, version 0.42.3
+
+[quant] fragment length distribution is truncate gaussian with mean = 101, sd = 20
+Error: could not create directory data/processed/test/SRR1586766
+
+Usage: kallisto quant [arguments] FASTQ-files
+
+Required arguments:
+-i, --index=STRING            Filename for the kallisto index to be used for
+                              quantification
+-o, --output-dir=STRING       Directory to write output to
+
+Optional arguments:
+    --single                  Quantify single-end reads
+    --bias                    Perform sequence based bias correction
+-l, --fragment-length=DOUBLE  Estimated average fragment length
+                              (default: value is estimated from the input data)
+    --pseudobam               Output pseudoalignments in SAM format to stdout
+-b, --bootstrap-samples=INT   Number of bootstrap samples (default: 0)
+-t, --threads=INT             Number of threads to use for bootstraping (default: 1)
+    --seed=INT                Seed for the bootstrap sampling (default: 42)
+    --plaintext               Output plaintext instead of HDF5
+
+
+===========================================================================
+Job Finished
+
+Name                : allocation
+User                : caryn89
+Partition           : 
+Nodes               : c10-93
+Cores               : 19
+State               : FAILED
+Submit              : 2017-09-21T15:43:35
+Start               : 2017-09-21T15:43:36
+End                 : 2017-09-21T15:43:36
+Reserved walltime   : --
+Used walltime       : --
+Used CPU time       : --
+% User (Computation): 76.19%
+% System (I/O)      : 23.81%
+Mem reserved        : 0/node
+Max Mem used        : 0.00  (c10-93)
+Max Disk Write      : 0.00  (c10-93)
+Max Disk Read       : 0.00  (c10-93)

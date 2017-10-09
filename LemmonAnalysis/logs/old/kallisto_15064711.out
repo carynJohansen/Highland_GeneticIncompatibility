@@ -1,0 +1,56 @@
+==========================================
+SLURM_JOB_ID = 15064711
+SLURM_NODELIST = c9-96
+==========================================
+Module slurm/16.05.8 loaded 
+Module openmpi/2.0.1 loaded 
+Module kallisto/default v0.42.3 loaded 
+kallisto, version 0.42.3
+
+[build] loading fasta file data/raw/SRR1586899_pass.fasta.gz
+[build] k-mer length: 31
+[build] warning: clipped off poly-A tail (longer than 10)
+        from 5055 target sequences
+[build] warning: replaced 623453 non-ACGUT characters in the input sequence
+        with pseudorandom nucleotides
+[build] counting k-mers ... done.
+[build] building target de Bruijn graph ...  done 
+[build] creating equivalence classes ...  done
+[build] target de Bruijn graph has 16227531 contigs and contains 117821744 k-mers 
+
+index error: 0
+
+[quant] fragment length distribution is truncate gaussian with mean = 101, sd = 20
+[index] k-mer length: 31
+[index] number of targets: 8,271,512
+[index] number of k-mers: 117,821,744
+[index] number of equivalence classes: 17,826,720
+[quant] running in single-end mode
+[quant] will process file 1: data/raw/SRR1586899_pass_1.fastq.gz
+[quant] finding pseudoalignments for the reads ... done
+[quant] processed 8,271,512 reads, 8,269,018 reads pseudoaligned
+[   em] quantifying the abundances ... done
+[   em] the Expectation-Maximization algorithm ran for 233 rounds
+[bstrp] running EM for the bootstrap: 1[bstrp] running EM for the bootstrap: 2[bstrp] running EM for the bootstrap: 3[bstrp] running EM for the bootstrap: 4[bstrp] running EM for the bootstrap: 5[bstrp] running EM for the bootstrap: 6[bstrp] running EM for the bootstrap: 7[bstrp] running EM for the bootstrap: 8[bstrp] running EM for the bootstrap: 9[bstrp] running EM for the bootstrap: 10[bstrp] running EM for the bootstrap: 11[bstrp] running EM for the bootstrap: 12[bstrp] running EM for the bootstrap: 13[bstrp] running EM for the bootstrap: 14[bstrp] running EM for the bootstrap: 15[bstrp] running EM for the bootstrap: 16[bstrp] running EM for the bootstrap: 17[bstrp] running EM for the bootstrap: 18[bstrp] running EM for the bootstrap: 19slurmstepd: error: *** JOB 15064711 ON c9-96 CANCELLED AT 2017-09-16T22:57:03 ***
+
+===========================================================================
+Job Finished
+
+Name                : kallisto
+User                : caryn89
+Partition           : high
+Nodes               : c9-96
+Cores               : 19
+State               : CANCELLED,CANCELLED by 967280
+Submit              : 2017-09-16T16:30:53
+Start               : 2017-09-16T21:54:30
+End                 : 2017-09-16T22:57:03
+Reserved walltime   : 04:00:00
+Used walltime       : 01:02:33
+Used CPU time       : 00:43:14
+% User (Computation): 97.72%
+% System (I/O)      :  2.28%
+Mem reserved        : 50000M/node
+Max Mem used        : 23.10G (c9-96)
+Max Disk Write      : 7.75G (c9-96)
+Max Disk Read       : 8.30G (c9-96)

@@ -1,0 +1,33 @@
+==========================================
+SLURM_JOB_ID = 15003471
+SLURM_NODELIST = c9-89
+==========================================
+Module slurm/16.05.8 loaded 
+Module openmpi/2.0.1 loaded 
+Module sratoolkit/2.8.2 loaded 
+Read 10050143 spots for SRR1586889
+Written 10050143 spots for SRR1586889
+exit error 0
+/var/spool/slurmd/job15003471/slurm_script: line 34: vbd-validate: command not found
+
+===========================================================================
+Job Finished
+
+Name                : sra-dump
+User                : caryn89
+Partition           : med
+Nodes               : c9-89
+Cores               : 2
+State               : FAILED,RUNNING
+Submit              : 2017-09-15T15:19:57
+Start               : 2017-09-15T16:38:39
+End                 : --
+Reserved walltime   : 05:00:00
+Used walltime       : 00:28:11
+Used CPU time       : 00:08:24
+% User (Computation): 99.43%
+% System (I/O)      :  0.57%
+Mem reserved        : 5000M/node
+Max Mem used        : 30.43M (c9-89)
+Max Disk Write      : 1.53G (c9-89)
+Max Disk Read       : 762.00M (c9-89)

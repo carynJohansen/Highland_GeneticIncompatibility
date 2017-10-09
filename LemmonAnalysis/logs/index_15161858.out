@@ -1,0 +1,42 @@
+==========================================
+SLURM_JOB_ID = 15161858
+SLURM_NODELIST = c8-91
+==========================================
+Module slurm/16.05.8 loaded 
+Module openmpi/2.0.1 loaded 
+Module kallisto/default v0.42.3 loaded 
+kallisto, version 0.42.3
+
+[build] loading fasta file /home/caryn89/genomes/maize_cdna_v4/Zea_mays.AGPv4.cdna.T01filtered.fa
+[build] k-mer length: 31
+[build] warning: clipped off poly-A tail (longer than 10)
+        from 8 target sequences
+[build] counting k-mers ... done.
+[build] building target de Bruijn graph ...  done 
+[build] creating equivalence classes ...  done
+[build] target de Bruijn graph has 474876 contigs and contains 52296340 k-mers 
+
+index error: 0
+/var/spool/slurmd/job15161858/slurm_script: line 39: index_time: unbound variable
+
+===========================================================================
+Job Finished
+
+Name                : index
+User                : caryn89
+Partition           : high
+Nodes               : c8-91
+Cores               : 19
+State               : FAILED
+Submit              : 2017-09-19T09:16:18
+Start               : 2017-09-19T09:16:19
+End                 : 2017-09-19T09:18:27
+Reserved walltime   : 05:00:00
+Used walltime       : 00:02:08
+Used CPU time       : 00:02:02
+% User (Computation): 98.04%
+% System (I/O)      :  1.96%
+Mem reserved        : 50000M/node
+Max Mem used        : 1.77G (c8-91)
+Max Disk Write      : 480.00M (c8-91)
+Max Disk Read       : 64.00M (c8-91)

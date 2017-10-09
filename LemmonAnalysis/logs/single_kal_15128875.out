@@ -1,0 +1,45 @@
+==========================================
+SLURM_JOB_ID = 15128875
+SLURM_NODELIST = c9-74
+==========================================
+Module slurm/16.05.8 loaded 
+Module openmpi/2.0.1 loaded 
+Module kallisto/default v0.42.3 loaded 
+kallisto, version 0.42.3
+
+[quant] fragment length distribution is truncate gaussian with mean = 101, sd = 20
+[index] k-mer length: 31
+[index] number of targets: 131,496
+[index] number of k-mers: 71,017,693
+[index] number of equivalence classes: 516,103
+[quant] running in single-end mode
+[quant] will process file 1: data/raw/SRR1586620_pass_1.fastq.gz
+[quant] finding pseudoalignments for the reads ... done
+[quant] processed 9,672,551 reads, 7,951,025 reads pseudoaligned
+[   em] quantifying the abundances ... done
+[   em] the Expectation-Maximization algorithm ran for 1,121 rounds
+
+kallisto error: 0
+kallisto quantification run time was 585 s
+
+===========================================================================
+Job Finished
+
+Name                : SRR1586620
+User                : caryn89
+Partition           : high
+Nodes               : c9-74
+Cores               : 19
+State               : COMPLETED
+Submit              : 2017-09-18T11:35:24
+Start               : 2017-09-18T11:35:25
+End                 : 2017-09-18T11:45:11
+Reserved walltime   : 09:00:00
+Used walltime       : 00:09:46
+Used CPU time       : 00:02:29
+% User (Computation): 97.49%
+% System (I/O)      :  2.51%
+Mem reserved        : 50000M/node
+Max Mem used        : 3.51G (c9-74)
+Max Disk Write      : 0.00  (c9-74)
+Max Disk Read       : 2.39G (c9-74)
