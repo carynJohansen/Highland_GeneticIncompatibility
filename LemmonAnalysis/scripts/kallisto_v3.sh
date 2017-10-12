@@ -1,9 +1,9 @@
 #!/bin/bash -l
 
 #SBATCH -D /home/caryn89/Projects/Highland_GeneticIncompatibility/LemmonAnalysis
-#SBATCH -J leaves
-#SBATCH -o /home/caryn89/Projects/Highland_GeneticIncompatibility/LemmonAnalysis/logs/leaf_kallisto_%j.out
-#SBATCH -e /home/caryn89/Projects/Highland_GeneticIncompatibility/LemmonAnalysis/logs/leaf_kallisto_%j.out
+#SBATCH -J leavesv3
+#SBATCH -o /home/caryn89/Projects/Highland_GeneticIncompatibility/LemmonAnalysis/logs/v3leaf_kallisto_%j.out
+#SBATCH -e /home/caryn89/Projects/Highland_GeneticIncompatibility/LemmonAnalysis/logs/v3leaf_kallisto_%j.out
 #SBATCH --time=9:00:00
 #SBATCH --mem=50000
 #SBATCH --array=1-151
@@ -26,7 +26,7 @@ srr=$(awk -v var="$SLURM_ARRAY_TASK_ID" 'FNR == var {print}' $srrFile)
 
 echo $srr
 
-idx="/home/caryn89/genomes/maize_cdna_v4/Zea_mays.AGPv4.cdna.all.idx"
+idx="/home/caryn89/genomes/maize_cdna_v3/Zea_mays.AGPv3.cdna.all.fa.idx"
 
 fastq=$srr\_pass\_1.fastq.gz
 
@@ -40,9 +40,9 @@ echo $idx
 quant_start=`date +%s`
 
 
-mkdir data/processed/v4/PRJNA262181_leaf/$srr
+mkdir data/processed/v3/PRJNA262181_leaf/$srr
 
-kallisto quant -i $idx -o data/processed/v4/PRJNA262181_leaf/$srr -b 100 --single -l 101 -s 20 data/raw/$fastq
+kallisto quant -i $idx -o data/processed/v3/PRJNA262181_leaf/$srr -b 100 --single -l 101 -s 20 data/raw/$fastq
 
 err=$?
 echo kallisto error: $err
