@@ -1,0 +1,407 @@
+---
+title: "idealized Design Matrix"
+author: "Caryn Johansen"
+date: "10/27/2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r}
+library(Matrix)
+library(tidyverse)
+library(lme4)
+```
+
+
+```{r}
+dm2 <- read.table("designM_ideal.csv", header=T, se=",")
+image(Matrix(as.matrix(dm2[,-c(1:4)])))
+dim(dm2)
+```
+```{r}
+table(dm2$Allele)
+table(dm2$Cross)
+```
+
+random tpm data
+```{r}
+y <- rnorm(1e4, mean = 0.679, sd = 0.8)
+y <- subset(y, y>-0.3)
+random_tpm_log <- sample(y, nrow(dm2))
+random_tpm <- 10**random_tpm_log
+dm2$tpm <- random_tpm
+```
+
+
+Full Model
+
+```{r}
+dm2_full_fit1 <- lmer(tpm ~ (1|PlantID) + cis_s + cis_m + trans_m + trans_s +
+                       trans_ms + 
+                       cis_m_trans_m + cis_m_trans_s +
+                       cis_s_trans_m + cis_s_trans_s +
+                       cis_m_trans_ms +
+                       cis_s_trans_ms, data=dm2)
+summary(dm2_full_fit1)
+full_mm <- model.matrix(tpm ~ cis_s + cis_m + trans_m + trans_s +
+                       trans_ms + trans_mb + trans_sb +
+                       cis_m_trans_m + cis_m_trans_s +
+                       cis_s_trans_m + cis_s_trans_s +
+                       cis_m_trans_ms +
+                       cis_s_trans_ms, data=dm2)
+lin_combos <- caret::findLinearCombos(full_mm)
+lin_combos
+colnames(full_mm)
+```
+
+## Simulating effect
+
+```{r}
+X <- as.matrix(dm2[,-c(1:4,29)])
+```
+
+
+### cis m
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for ( i in 1:ncol(X)) {
+
+  b <- rep(0,ncol(X))
+  b[i] <- 1
+  
+  p_values <- c()
+  for (j in 1:10) {
+    y <- X %*% b + rnorm(nrow(X), mean=0, sd=1e-10)
+    tryCatch({
+      fit1 <- lmer(y ~ (1|PlantID) + cis_s + cis_m + trans_m + trans_s +
+                       trans_ms + 
+                       cis_m_trans_m + cis_m_trans_s +
+                       cis_s_trans_m + cis_s_trans_s +
+                       cis_m_trans_ms +
+                       cis_s_trans_ms, data=dm2)
+    }, error=function(c) NA)
+    tryCatch({
+       fit2 <- lmer(y ~ (1|PlantID) + cis_s + trans_m + trans_s +
+                       trans_ms + 
+                       cis_s_trans_m + cis_s_trans_s +
+                       cis_s_trans_ms, data=dm2)
+    }, error=function(e) NA)
+    tryCatch({
+      p <- anova(fit1, fit2)$`Pr(>Chisq)`[2]
+    }, error=function(e) p <- NA)
+    p_values <- c(p_values, p)
+  }
+  p_values <- data.frame(variable=rep(colnames(X)[i],length(p_values)), p_values=p_values)
+  p_values_list[[i]] <- p_values
+}
+
+p_cis_m <- do.call("rbind", p_values_list)
+ggplot(p_cis_m) + geom_boxplot(aes(x=as.factor(variable), y=p_values)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### cis s
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for ( i in 1:ncol(X)) {
+
+  b <- rep(0,ncol(X))
+  b[i] <- 1
+  
+  p_values <- c()
+  for (j in 1:10) {
+    y <- X %*% b + rnorm(nrow(X), mean=0, sd=1e-10)
+    tryCatch({
+      fit1 <- lmer(y ~ (1|PlantID) + cis_s + cis_m + trans_m + trans_s +
+                       trans_ms + 
+                       cis_m_trans_m + cis_m_trans_s +
+                       cis_s_trans_m + cis_s_trans_s +
+                       cis_m_trans_ms +
+                       cis_s_trans_ms, data=dm2)
+    }, error=function(c) NA)
+    tryCatch({
+       fit2 <- lmer(y ~ (1|PlantID) + cis_m + trans_m + trans_s +
+                       trans_ms + 
+                       cis_m_trans_m + cis_m_trans_s +
+                       cis_m_trans_ms, data=dm2)
+    }, error=function(e) NA)
+    tryCatch({
+      p <- anova(fit1, fit2)$`Pr(>Chisq)`[2]
+    }, error=function(e) p <- NA)
+    p_values <- c(p_values, p)
+  }
+  p_values <- data.frame(variable=rep(colnames(X)[i],length(p_values)), p_values=p_values)
+  p_values_list[[i]] <- p_values
+}
+
+p_cis_s <- do.call("rbind", p_values_list)
+ggplot(p_cis_s) + geom_boxplot(aes(x=as.factor(variable), y=p_values)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+### trans ms
+
+remove interacting values
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for ( i in 1:ncol(X)) {
+
+  b <- rep(0,ncol(X))
+  b[i] <- 1
+  
+  p_values <- c()
+  for (j in 1:10) {
+    y <- X %*% b + rnorm(nrow(X), mean=0, sd=1e-10)
+    tryCatch({
+      fit1 <- lmer(y ~ (1|PlantID) + cis_s + cis_m + trans_m + trans_s +
+                       trans_ms + 
+                       cis_m_trans_m + cis_m_trans_s +
+                       cis_s_trans_m + cis_s_trans_s +
+                       cis_m_trans_ms +
+                       cis_s_trans_ms, data=dm2)
+    }, error=function(c) NA)
+    tryCatch({
+       fit2 <- lmer(y ~ (1|PlantID) + cis_s + cis_m + trans_m + trans_s +
+                       cis_m_trans_m + #cis_m_trans_s +
+                       cis_s_trans_s, data=dm2)
+    }, error=function(e) NA)
+    tryCatch({
+      p <- anova(fit1, fit2)$`Pr(>Chisq)`[2]
+    }, error=function(e) p <- NA)
+    p_values <- c(p_values, p)
+  }
+  p_values <- data.frame(variable=rep(colnames(X)[i],length(p_values)), p_values=p_values)
+  p_values_list[[i]] <- p_values
+}
+
+p_trans <- do.call("rbind", p_values_list)
+ggplot(p_trans) + geom_boxplot(aes(x=as.factor(variable), y=p_values)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### Without B73
+
+Remove the inbred B73 lines, which are the first three plants (hence the first 6 rows)
+
+```{r}
+dm3 <- dm2[-c(1:6),]
+image(Matrix(as.matrix(X)))
+X2 <- X[-c(1:6),]
+image(Matrix(as.matrix(X2)))
+```
+
+Run the simulation again:
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for ( i in 1:ncol(X2)) {
+
+  b <- rep(0,ncol(X2))
+  b[i] <- 1
+  
+  p_values <- c()
+  for (j in 1:10) {
+    y <- X2 %*% b + rnorm(nrow(X2), mean=0, sd=1e-10)
+    tryCatch({
+      fit1 <- lmer(y ~ (1|PlantID) + cis_s + cis_m + trans_m + trans_s +
+                       trans_ms + 
+                       cis_m_trans_m + cis_m_trans_s +
+                       cis_s_trans_m + cis_s_trans_s +
+                       cis_m_trans_ms +
+                       cis_s_trans_ms, data=dm3)
+    }, error=function(c) NA)
+    tryCatch({
+       fit2 <- lmer(y ~ (1|PlantID) + cis_s + cis_m + trans_m + trans_s +
+                       cis_m_trans_m + #cis_m_trans_s +
+                       cis_s_trans_s, data=dm3)
+    }, error=function(e) NA)
+    tryCatch({
+      p <- anova(fit1, fit2)$`Pr(>Chisq)`[2]
+    }, error=function(e) p <- NA)
+    p_values <- c(p_values, p)
+  }
+  p_values <- data.frame(variable=rep(colnames(X2)[i],length(p_values)), p_values=p_values)
+  p_values_list[[i]] <- p_values
+}
+
+p_trans <- do.call("rbind", p_values_list)
+ggplot(p_trans) + geom_boxplot(aes(x=as.factor(variable), y=p_values)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### No landrace crosses
+
+Remove MEXxMEX and SAMxSAM, and just look at B73, and the crosses between landraces
+
+```{r}
+dm4 <- dm2 %>% filter(Cross != "MEXxMEX", Cross != "SAMxSAM")
+X4 <- as.matrix(dm4[,-c(1:4,29)])
+```
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for ( i in 1:ncol(X4)) {
+
+  b <- rep(0,ncol(X4))
+  b[i] <- 1
+  
+  p_values <- c()
+  for (j in 1:10) {
+    y <- X4 %*% b + rnorm(nrow(X4), mean=0, sd=1e-10)
+    tryCatch({
+      fit1 <- lmer(y ~ (1|PlantID) + cis_s + cis_m + trans_m + trans_s +
+                       trans_ms + 
+                       cis_m_trans_m + cis_m_trans_s +
+                       cis_s_trans_m + cis_s_trans_s +
+                       cis_m_trans_ms +
+                       cis_s_trans_ms, data=dm4)
+    }, error=function(c) NA)
+    tryCatch({
+       fit2 <- lmer(y ~ (1|PlantID) + cis_s + cis_m + trans_m + trans_s +
+                       cis_m_trans_m + #cis_m_trans_s +
+                       cis_s_trans_s, data=dm4)
+    }, error=function(e) NA)
+    tryCatch({
+      p <- anova(fit1, fit2)$`Pr(>Chisq)`[2]
+    }, error=function(e) p <- NA)
+    p_values <- c(p_values, p)
+  }
+  p_values <- data.frame(variable=rep(colnames(X4)[i],length(p_values)), p_values=p_values)
+  p_values_list[[i]] <- p_values
+}
+
+p_trans <- do.call("rbind", p_values_list)
+ggplot(p_trans) + geom_boxplot(aes(x=as.factor(variable), y=p_values)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+
+### Difference between cis_b and cis_m/cis_s
+
+Attempting to distinguish between cis_s/cis_m and cis_b
+
+```{r}
+X <- as.matrix(dm2[,-c(1:4,29)]) #making sure I don't use an altered X that would mess up my interpretation
+```
+
+Simulating cis_b
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+
+for (i in 1:ncol(X)) {
+  b <- rep(0,ncol(X))
+  b[i] <- 1
+  p_values <- c()
+  for (j in 1:10) {
+    y <- X %*% b + rnorm(nrow(X), mean=0, sd=1e-10)
+    tryCatch({
+      fit1 <- lmer(y ~ (1|Cross2) + cis_s + cis_m + trans_m + trans_s +
+                       trans_ms +
+                       cis_m_trans_m + cis_m_trans_s +
+                       cis_s_trans_m + cis_s_trans_s +
+                       cis_m_trans_ms +
+                       cis_s_trans_ms, data=dm2)
+    }, error=function(c) NA)
+    tryCatch({
+      fit2 <- lmer(y ~ (1|Cross2) + cis_s + trans_m + trans_s +
+                       trans_ms +
+                       cis_s_trans_m + cis_s_trans_s +
+                       cis_s_trans_ms, data=dm2)
+    }, error=function(e) NA)
+    tryCatch({
+      p <- anova(fit1, fit2)$`Pr(>Chisq)`[2]
+    }, error=function(e) p <- NA)
+  p_values <- c(p_values, p)
+  }
+  p_values <- data.frame(variable=rep(colnames(X)[i],length(p_values)), p_values=p_values)
+  p_values_list[[i]] <- p_values
+} 
+
+p_cis_m2 <- do.call("rbind", p_values_list)
+ggplot(p_cis_m2) + geom_boxplot(aes(x=as.factor(variable), y=p_values)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+##### Without landraces
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for ( i in 1:ncol(X4)) {
+
+  b <- rep(0,ncol(X4))
+  b[i] <- 1
+  
+  p_values <- c()
+  for (j in 1:10) {
+    y <- X4 %*% b + rnorm(nrow(X4), mean=0, sd=1e-10)
+    tryCatch({
+      fit1 <- lmer(y ~ (1|PlantID) + cis_s + cis_m + trans_m + trans_s +
+                       trans_ms +
+                       cis_m_trans_m + cis_m_trans_s +
+                       cis_s_trans_m + cis_s_trans_s +
+                       cis_m_trans_ms +
+                       cis_s_trans_ms, data=dm4)
+    }, error=function(c) NA)
+    tryCatch({
+       fit2 <- lmer(y ~ (1|PlantID) + cis_s + trans_m + trans_s +
+                       trans_ms +
+                       cis_s_trans_m + cis_s_trans_s +
+                       cis_s_trans_ms, data=dm4)
+    }, error=function(e) NA)
+    tryCatch({
+      p <- anova(fit1, fit2)$`Pr(>Chisq)`[2]
+    }, error=function(e) p <- NA)
+    p_values <- c(p_values, p)
+  }
+  p_values <- data.frame(variable=rep(colnames(X4)[i],length(p_values)), p_values=p_values)
+  p_values_list[[i]] <- p_values
+}
+
+p_cis_m3 <- do.call("rbind", p_values_list)
+ggplot(p_cis_m3) + geom_boxplot(aes(x=as.factor(variable), y=p_values)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+# Restructure DM on Mex allele
+
+
+```{r}
+d <- data.frame(cis=rep(c("B","S","M"),2))
+model.matrix(~cis,d)
+```
+
+```{r}
+d$T1 <- rep(c("BS","BM","MS"), each=2)
+
+d$TM <- c(0,1)[grepl('M',d$T1)+1]
+d$TS <- c(0,1)[grepl('S', d$T1)+1]
+d$TB <- c(0,1)[grepl('B', d$T1)+1]
+
+model.matrix(~cis*TM*TS,d)
+```
+
+Make relative to Mexico
+
+```{r}
+dMex <- d
+dMex$cis <- relevel(dMex$cis, 2) # make Mex the intercept
+model.matrix(~cis*TB*TS, dMex)
+```
+
+

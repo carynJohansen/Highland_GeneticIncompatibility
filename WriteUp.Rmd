@@ -1,0 +1,373 @@
+---
+title: "Generalized Linear Model for estimating Trans effects"
+author: "Caryn Johansen"
+date: "10/10/2017"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+# Introduction
+
+## Genetic Incompatibiltiy
+
+## Maize independent evolution to highlands
+
+## cis and trans regulation
+
+_cis_ regulatory elements are considered by many researchers to be one of the main mechanisms by which evolution occurs 
+  - Lemmon et al. doi: 10.1371/journal.pgen.1004745
+  - Lemmon cites three papers with this statement:
+    - doi: 10.1371/journal.pbio.0030245
+    - doi: 10.1016/j.cell.2008.06.030
+    - doi: 10.1038/nrg3095
+
+The focus here is on phenotypic evolution, that cis-regulation has a large effect on phenotypic variation.
+
+## crossing scheme and experimental design
+
+# Methods
+
+```{r}
+library(lme4)
+library(ggplot2)
+```
+
+## Model for estimating trans effects
+
+The purpose of this section is to use randomly generated data to determine if a linear model could 
+provide the information we desire on the trans effect.
+
+Load the design matrix
+
+```{r}
+dm <- read.table("designMatrix.csv", sep=",", header=T)
+```
+
+This design matrix includes some of the crosses that I will have access to, but the crosses not included do not 
+add any new information in terms of allele information.
+I have crosses between Mexican highland races and B73, Andes highland races and B73, and between MExican highland 
+and Andes highland. Each plant of each cross has two rows, one for each allele.
+
+The rest of the design matrix contains either a 1 or 0 to indicate presence/absence of information. I am testing out
+different linear models to estimate what information I can and cannot get from this experiment design. 
+
+To estimate genetic interactions between mexican and south american landraces, I need to be able to calculate the 
+trans interaction between Mexican (m) and South American (s) genomic backgrounds. This is the trans_ms component.
+
+### simulate tpm data
+
+Randomly get gene expression from the simulated data for each plant allele
+
+```{r}
+y <- rnorm(1e4, mean = 0.679, sd = 0.8)
+y <- subset(y, y>-0.3)
+hist(y, breaks = 100)
+allele_tpm_log <- sample(y, size=nrow(dm))
+allele_tpm_log
+allele_tpm <- 10**(allele_tpm_log)
+allele_tpm
+dm$tpm <- allele_tpm
+```
+
+### Plant ID as random effect
+
+Including PlantID as a random effect
+
+```{r}
+dm$PlantID <- as.factor(dm$PlantID)
+fit2 <- lmer(tpm ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + trans_ms +
+            cis_m_trans_m + cis_s_trans_m +
+            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
+            cis_s_trans_ms, data = dm)
+summary(fit2)
+fit3 <- lmer(tpm ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + 
+            cis_m_trans_m + cis_s_trans_s, data = dm)
+summary(fit3)
+anova(fit2,fit3)
+
+```
+
+The values from the ANOVA indicate that these two models are extremely similar. 
+Fit 3 is slightly better, according to AIC, but by 2. So barely, if not at all.
+
+### linear combos
+
+In order to determine which combinations of the equation components are highly correlated, use linearCombos
+
+```{r}
+dm$PlantID <- as.factor(dm$PlantID)
+mm2 <- model.matrix(tpm ~ cis_m + cis_s + trans_m + trans_s + trans_ms +
+            cis_m_trans_m + cis_s_trans_m +
+            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
+            cis_s_trans_ms, data = dm)
+
+linear_combos = caret::findLinearCombos(mm2[,-1]) #remove the intercept
+linear_combos
+colnames(mm2[,-1])
+```
+
+This indicates that I cannot tell the difference between:
+
+cis_m_trans_m and cis_m - which makes sense and may not be that important
+
+cis_m_trans_s, trans_ms, cis_s_trans_m - which may also be ok, as I will mostly just be looking for trans_ms, and 
+the other two components are possible components of that trans_ms. But this also may eventually stifle 
+interpretation, as I will not be able to distinguish between the cis_s effect or the trans_m effect on a South 
+American allele of a gene, or vica versa.
+
+```{r}
+fit2_b <- lmer(tpm ~ (1|PlantID) +  trans_m + trans_s + trans_ms, data = dm)
+summary(fit2_b)
+
+
+fit3_b <- lmer(tpm ~ (1|PlantID) + trans_m + trans_s, data = dm)
+summary(fit3_b)
+
+
+anova(fit2_b, fit3_b) #the cis matters - and get cis from ASE
+```
+
+This set of linear models indicates that the cis information is necessary for calculating some of the trans effects.
+Therefore, I will have to do ASE.
+
+## Cis-trans effects are complicated
+
+```{r}
+# test the models by adding effects to the coefficients iteratively
+X <- as.matrix(dm[,-c(1:4, 27)]) # remove non-design matrix information
+
+b <- rep(0,ncol(X))
+b[3] = 1
+y <- X %*% b + rnorm(nrow(X), mean=0, sd=1e-10)
+
+fit1 <- lmer(y ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + trans_ms +
+            cis_m_trans_m + cis_s_trans_m +
+            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
+            cis_s_trans_ms, data = dm)
+fit2 <- lmer(y ~ (1|PlantID) + cis_s + trans_m + trans_s + trans_ms +
+            cis_s_trans_m +
+            cis_s_trans_s + 
+            cis_s_trans_ms, data = dm)
+anova(fit1, fit2)
+```
+
+This exercise is showing that I can't tell the difference between a cis component of my model, and the interaction feature, the cis-trans effects.
+
+Here, I'm testing between two models with and without the cis_m features.
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for ( i in 1:ncol(X)) {
+
+  b <- rep(0,ncol(X))
+  b[i] <- 1
+  
+  p_values <- c()
+  for (j in 1:10) {
+    y <- X %*% b + rnorm(nrow(X), mean=0, sd=1e-10)
+    tryCatch({
+      fit1 <- lmer(y ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + trans_ms +
+            cis_m_trans_m + cis_s_trans_m +
+            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
+            cis_s_trans_ms, data = dm)
+    }, error=function(c) NA)
+    tryCatch({
+       fit2 <- lmer(y ~ (1|PlantID) + cis_s + trans_m + trans_s + trans_ms +
+            cis_s_trans_m + cis_s_trans_s + cis_s_trans_ms, data = dm)
+    }, error=function(e) NA)
+    tryCatch({
+      p <- anova(fit1, fit2)$`Pr(>Chisq)`[2]
+    }, error=function(e) p <- NA)
+    p_values <- c(p_values, p)
+  }
+  p_values <- data.frame(variable=rep(colnames(X)[i],length(p_values)), p_values=p_values)
+  p_values_list[[i]] <- p_values
+}
+
+p_cis_m <- do.call("rbind", p_values_list)
+
+```
+
+So I should see an even distribution of effects for simulated data for interaction terms, and low p-values for data from the 
+
+plot the p-values
+
+```{r}
+ggplot(p_cis_m) + geom_boxplot(aes(x=as.factor(variable), y=p_values)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+The interpretation of this graph is that, in models where I have simulated the data, where every group on the x-axes
+I have created a true data set, the models in which I took out the cis-trans effect of the mexican background is significanly different than the full model.
+This indicates that I cannot unravel the effects of cis_m and it's trans-interaction variables. 
+
+Again, with cis_s and it's interactions effects:
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for ( i in 1:ncol(X)) {
+
+  b <- rep(0,ncol(X))
+  b[i] <- 1
+  
+  p_values <- c()
+  for (j in 1:10) {
+    y <- X %*% b + rnorm(nrow(X), mean=0, sd=1e-10) #simulate data with current b-vector
+    tryCatch({ #fit 1, full model
+      fit1 <- lmer(y ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + trans_ms +
+            cis_m_trans_m + cis_s_trans_m +
+            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
+            cis_s_trans_ms, data = dm)
+    }, error=function(c) NA)
+    tryCatch({ #fit 2, reduced model, no cis_s effects
+       fit2 <- lmer(y ~ (1|PlantID) + cis_m + trans_m + trans_s + trans_ms +
+            cis_m_trans_m + cis_m_trans_s + cis_m_trans_ms, data = dm)
+    }, error=function(e) NA)
+    tryCatch({ #see if the models are different
+      p <- anova(fit1, fit2)$`Pr(>Chisq)`[2]
+    }, error=function(e) p <- NA)
+    p_values <- c(p_values, p)
+  }
+  p_values <- data.frame(variable=rep(colnames(X)[i],length(p_values)), p_values=p_values) #catch the p-values in a energy-inefficient structure that enables for easy graphing later.
+  p_values_list[[i]] <- p_values
+}
+
+p_cis_s <- do.call("rbind", p_values_list)
+```
+
+```{r}
+ggplot(p_cis_s) + geom_boxplot(aes(x=variable, y=p_values)) + theme(axis.text.x = element_text(angle=45, hjust = 1))
+```
+
+The interpretation of this graph is that, using these models, I cannot distinguish between just the single south american cis allele effect and the cis-trans interactions between the SA allele and other backgrounds.
+Also that I cannot distinguish between some B73 and SA allele cis-trans interactions.
+
+Above was a proof of concept. Now try it by comparing between models with the values that I really want to discover: 
+
+
+```{r}
+fit2 <- lmer(tpm ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + trans_ms +
+            cis_m_trans_m + cis_s_trans_m +
+            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
+            cis_s_trans_ms, data = dm)
+summary(fit2)
+fit3 <- lmer(tpm ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + 
+            cis_m_trans_m + cis_s_trans_s, data = dm)
+```
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for ( i in 1:ncol(X)) {
+
+  b <- rep(0,ncol(X))
+  b[i] <- 1
+  
+  p_values <- c()
+  for (j in 1:4) {
+    y <- X %*% b + rnorm(nrow(X), mean=0, sd=1e-10) #simulate data with current b-vector
+    tryCatch({ #fit 1, full model
+      fit1 <- lmer(y ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + trans_ms +
+            cis_m_trans_m + cis_s_trans_m +
+            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
+            cis_s_trans_ms, data = dm)
+    }, error=function(c) NA)
+    tryCatch({ #fit 2, reduced model
+       fit2 <- lmer(y ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s +
+                      trans_ms +
+            cis_m_trans_m + cis_s_trans_s, data = dm)
+    }, error=function(e) NA)
+    tryCatch({ #see if the models are different
+      p <- anova(fit1, fit2)$`Pr(>Chisq)`[2]
+    }, error=function(e) p <- NA)
+    p_values <- c(p_values, p)
+  }
+  p_values <- data.frame(variable=rep(colnames(X)[i],length(p_values)), p_values=p_values) #catch the p-values in a energy-inefficient structure that enables for easy graphing later.
+  p_values_list[[i]] <- p_values
+}
+
+p_trans <- do.call("rbind", p_values_list)
+
+```
+
+
+```{r}
+ggplot(p_trans) + geom_boxplot(aes(x=as.factor(variable), y=p_values)) + theme(axis.text.x = element_text(angle=45, hjust = 1))
+```
+
+Random testing
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for ( i in 1:ncol(X)) {
+
+  b <- rep(0,ncol(X))
+  b[i] <- 1
+  
+  p_values <- c()
+  for (j in 1:20) {
+    y <- X %*% b + rnorm(nrow(X), mean=0, sd=1e-10) #simulate data with current b-vector
+    tryCatch({ #fit 1, full model
+      fit1 <- lmer(y ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + trans_ms +
+            cis_m_trans_m + cis_s_trans_m +
+            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
+            cis_s_trans_ms, data = dm)
+    }, error=function(c) NA)
+    tryCatch({ #fit 2, reduced model
+       fit2 <- lmer(y ~ (1|PlantID) + trans_m + trans_s + trans_ms +
+            cis_m_trans_m + cis_s_trans_m +
+            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
+            cis_s_trans_ms, data = dm)
+    }, error=function(e) NA)
+    tryCatch({ #see if the models are different
+      p <- anova(fit1, fit2)$`Pr(>Chisq)`[2]
+    }, error=function(e) p <- NA)
+    p_values <- c(p_values, p)
+  }
+  p_values <- data.frame(variable=rep(colnames(X)[i],length(p_values)), p_values=p_values) #catch the p-values in a energy-inefficient structure that enables for easy graphing later.
+  p_values_list[[i]] <- p_values
+}
+
+p_trans <- do.call("rbind", p_values_list)
+
+
+ggplot(p_trans) + geom_boxplot(aes(x=as.factor(variable), y=p_values)) + theme(axis.text.x = element_text(angle=45, hjust = 1))
+```
+
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for ( i in 1:ncol(X)) {
+
+  b <- rep(0,ncol(X))
+  b[i] <- 1
+  
+  p_values <- c()
+  for (j in 1:20) {
+    y <- X %*% b + rnorm(nrow(X), mean=0, sd=1e-10) #simulate data with current b-vector
+    tryCatch({ #fit 1, full model
+      fit1 <- lmer(y ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + trans_ms +
+            cis_m_trans_m + cis_s_trans_m +
+            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
+            cis_s_trans_ms, data = dm)
+    }, error=function(c) NA)
+    tryCatch({ #fit 2, reduced model
+       fit2 <- lmer(y ~ (1|PlantID) + trans_m + trans_s, data = dm)
+    }, error=function(e) NA)
+    tryCatch({ #see if the models are different
+      p <- anova(fit1, fit2)$`Pr(>Chisq)`[2]
+    }, error=function(e) p <- NA)
+    p_values <- c(p_values, p)
+  }
+  p_values <- data.frame(variable=rep(colnames(X)[i],length(p_values)), p_values=p_values) #catch the p-values in a energy-inefficient structure that enables for easy graphing later.
+  p_values_list[[i]] <- p_values
+}
+
+p_trans <- do.call("rbind", p_values_list)
+
+```
