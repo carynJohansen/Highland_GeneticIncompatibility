@@ -1,0 +1,58 @@
+---
+title: "The Question"
+author: "Caryn Johansen"
+date: "11/13/2017"
+output: html_document
+---
+
+Genetic incompatibility
+
+Here, we are looking for an deleterious interaction between either two alleles or two genomci backgrounds that have undergone selection in independent populations but are now in an F1 cross together.
+
+Specifically, I would be looking for a change in expression in an F1 cross between the highland populations that is greater than change in expression between crosses among the highlands and changes in expression between highlands and some other genetic background (more on this later).
+
+The model I am looking in is maize, which has two populations that have independently adapted to the highland environments in Mexico and South America.
+
+In order to assess genetic incompatibility, there are two general steps:
+
+1. identify regions/genes/pathways that have both been under selection in these two populations.
+2. statistically assess the outcome when these selected pathways are combined together.
+
+1. 
+
+Identification of regions of the genomes under selection can be done using an Fst approach from the sequence of highland and lowland samples. 
+I think that all the genetic material required for this has been collected.
+
+2.
+
+What's necessary here is to establish an expectation for how an allele behaves, both within it's population, with closer related populations, and between distantly related populations.
+An F1 cross between individuals of two highland populations by itself has no statistical meaning, and genetic incompatibility cannot be determined.
+
+I **currently** have the gene expression from crosses of highland populations to B73, and four F1 crosses between four lines each of highland populations in Mexico and South America.
+Within this crossing scheme, I can measure changes in expression between a landrace allele and the B73 allele, and the relative change in the F1 to this B73xlandrace cross.
+I can observe interactions between the landrace genomes in the F1, but cannot make more specific observations about those interactions, i.e. I cannot distinguish a cisM:TS interaction from a cisS:TM interaction.
+Also, I cannot distinguish certain interactions from a B73 effect. 
+For example, a cisM effect might be a cisM:transB effect, or a negative cisM:transS effect.
+I would find the negative cisM:transS effect interesting, but not the cisM:transB effect.
+As far as I can tell, this experiment does not have the contrasts to distignuish these effects.
+
+Given the above initial statement, that genetic incompatibility that is due to independent selection, this seems to require information about the relative expression between the lowland and the highlands, how more closely related highlands genetically interact (Mexico highland x Mexico highland) compared to more distant populations.
+
+In addition, while I will be able to observe that an interaction is occurring, I cannot with this crossing scheme make quantitative statements about that cross. 
+
+What would be necessary to identify genetic incompatibility/depression would be:
+
+- fitness measurements from common gardens from parents and F1s
+- crosses, within and between population groups, to allow for contrasts between and with environments where the selection took place.
+
+Mexican High x Mexican High
+Mexican High x South American High
+South American High x South American High
+Mexican Low x Mexican Low
+South American Lox x South American Low
+
+The within population crosses would serve to establish an expectation for the level of gene expression, and perhaps the trans effect of that genotype.
+The high elevation to low elevation contrast would serve to measure the impact of selection on gene expression changes.
+Also to establish a null expectation for an "ancestral" or reduced/less fit state for the F1 cross.
+The cross between Mexican and South American highland populations would then have two comparisons - within nearby populations, and between non-adapted populations.
+
