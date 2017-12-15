@@ -51,5 +51,5 @@ quant_end=`date +%s`
 ((quant_time=$quant_end - $quant_start))
 echo kallisto quantification run time was $quant_time s
 
-echo $SLURM_JOB_ID $SLURM_ARRAY_TASK_ID $quant_time $srr >> PRJNA262181_leaf_kallisto_info.txt
+echo $SLURM_JOB_ID $SLURM_ARRAY_TASK_ID $quant_time $srr >> PRJNA262181_leaf_v3_kallisto_info.txt
 

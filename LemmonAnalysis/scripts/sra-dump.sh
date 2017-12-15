@@ -8,7 +8,7 @@
 #SBATCH --mail-type=FAIL
 #SBATCH --mail-user=cjohansen@ucdavis.edu
 #SBATCH --mem=4000
-#SBATCH --array=1-151
+#SBATCH --array=4,5,76,77,78,79,80,82,83
 
 set -u
 set -e
@@ -34,8 +34,8 @@ outdir="/home/caryn89/Projects/Highland_GeneticIncompatibility/LemmonAnalysis/da
 #check to see if the file has already been created
 
 if [ ! -e $outdir/$fastq ]; then
-	fastq-dump --outdir data/raw --gzip --skip-technical --readids --read-filter pass --dumpbase --clip -fasta $srr
-
+	#fastq-dump --outdir data/raw --gzip --skip-technical --readids --read-filter pass --dumpbase --clip -fasta $srr
+	fastq-dump --outdir data/raw --gzip --skip-technical --readids --read-filter pass --dumpbase --split-files --clip $srr
 	exitError=$?
 	echo exit error $exitError
 else

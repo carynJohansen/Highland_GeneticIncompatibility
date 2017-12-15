@@ -35,4 +35,8 @@ vignettes/*.pdf
 # Temporary files created by R markdown
 *.utf8.md
 *.knit.md
->>>>>>> 88dbe607c46f7759263931ffd6a74b00a0557e76
+
+# Lemmon Suff
+
+LemmonAnalysis/logs/
+
