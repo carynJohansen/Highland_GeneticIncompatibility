@@ -1,0 +1,687 @@
+---
+title: "Plotting Kallisto results by group"
+author: "Caryn Johansen"
+date: "12/18/2017"
+output: 
+  html_document: 
+    keep_md: yes
+---
+
+# env
+
+```{r message=FALSE}
+library(reshape2)
+library(tidyverse)
+library(gplots)
+```
+
+
+# data
+
+Transcripts per Million, for each gene by each sample
+
+```{r}
+gene_tpm <- readRDS("gene_tpm.rds")
+```
+
+Make gene_tpm into a long data frame for plotting with ggplot
+
+```{r}
+tpm_long <- gene_tpm
+tpm_long$gene <- rownames(tpm_long)
+tpm_long <- reshape2::melt(tpm_long, id = "gene")
+colnames(tpm_long) <- c("gene", "sample", "tpm")
+```
+
+I need the meta information about which sample is what
+
+```{r}
+meta <- read.table("../../SraRunTable.txt", header=T, sep="\t")
+meta_leaf <- dplyr::filter(meta, tissue_s == "leaf")
+meta_leaf <- dplyr::select(meta_leaf, sample=Run_s, cultivar=cultivar_s, genotype=genotype_s, tissue=tissue_s)
+meta_leaf$genotype <- relevel(meta_leaf$genotype, ref="maize")
+```
+
+Order the samples based on the genotype order
+
+```{r}
+meta_leaf <- meta_leaf[order(meta_leaf$genotype),]
+meta_leaf$sample <- factor(meta_leaf$sample, levels = meta_leaf$sample)
+```
+
+
+Join meta_leaf with the tpm_long data frame
+
+```{r}
+tpm_long <- tpm_long %>% left_join(meta_leaf, by="sample")
+head(tpm_long)
+str(tpm_long)
+```
+
+reorder levels of genotype
+
+Results from the limma analysis, by cultivar group
+
+```{r}
+res_bycult <- readRDS("bygroup_sig.rds")
+res_bycult_both <- res_bycult %>% filter(de == "both")
+```
+
+Results from the limma analysis, by genotype
+
+```{r}
+res_bygeno <- readRDS("bygenotype_sig.rds")
+res_bygeno_both <- res_bygeno %>% filter(de == "both")
+```
+
+
+Assign each cultivar to it's analysis group:
+
+```{r}
+contrast_groups <- list("B73_TIL01"=c("B73_TIL01","B73", "TIL01"),
+                        "B73_TIL03"=c("B73_TIL03","B73", "TIL03"),
+                        "B73_TIL05"=c("B73_TIL05","B73", "TIL05"),
+                        "B73_TIL09"=c("B73_TIL09","B73", "TIL09"),
+                        "B73_TIL11"=c("B73_TIL11","B73", "TIL11"),
+                        "B73_TIL14"=c("B73_TIL14","B73", "TIL14"),
+                        "B73_TIL25"=c("B73_TIL25","B73", "TIL25"),
+                        "CML103_TIL03"=c("CML103_TIL03","CML103", "TIL03"),
+                        "CML103_TIL11"=c("CML103_TIL11","CML103", "TIL11"),
+                        "CML103_TIL14"=c("CML103_TIL14","CML103", "TIL14"),
+                        "CML103_TIL25"=c("CML103_TIL25","CML103", "TIL25"),
+                        "Ki3_TIL03"=c("Ki3_TIL03","Ki3", "TIL03"),
+                        "Ki3_TIL09"=c("Ki3_TIL09","Ki3", "TIL09"),
+                        "Ki3_TIL11"=c("Ki3_TIL11","Ki3", "TIL11"),
+                        "Ki3_TIL14"=c("Ki3_TIL14","Ki3", "TIL14"),
+                        "Mo17_TIL01"=c("Mo17_TIL01","Mo17", "TIL01"),
+                        "Mo17_TIL09"=c("Mo17_TIL09","Mo17", "TIL09"),
+                        "Mo17_TIL14"=c("Mo17_TIL14","Mo17", "TIL14"),
+                        "Mo17_TIL25"=c("Mo17_TIL25","Mo17", "TIL25"),
+                        "Oh43_TIL01"=c("Oh43_TIL01","Oh43", "TIL01"),
+                        "Oh43_TIL03"=c("Oh43_TIL03","Oh43", "TIL03"),
+                        "Oh43_TIL09"=c("Oh43_TIL09","Oh43", "TIL09"),
+                        "Oh43_TIL10"=c("Oh43_TIL10","Oh43", "TIL10"),
+                        "Oh43_TIL11"=c("Oh43_TIL11","Oh43", "TIL11"),
+                        "Oh43_TIL15"=c("Oh43_TIL15","Oh43", "TIL15"),
+                        "Oh43_TIL25"=c("Oh43_TIL25","Oh43", "TIL25"),
+                        "W22_TIL01"=c("W22_TIL01","W22", "TIL01"),
+                        "W22_TIL03"=c("W22_TIL03","W22", "TIL03"),
+                        "W22_TIL11"=c("W22_TIL11","W22", "TIL11"),
+                        "W22_TIL14"=c("W22_TIL14","W22", "TIL14"),
+                        "W22_TIL25"=c("W22_TIL25","W22", "TIL25"))
+
+```
+
+
+# Functions
+
+```{r}
+plot_gene_tpm_cult <- function(gene_to_plot) {
+  #gene is a character string
+  
+  # get group
+  
+  tpm_long %>% filter(gene == gene_to_plot) %>% ggplot() + 
+    geom_box(aes(x=sample, y=tpm, fill=cultivar), stat = "identity") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(gene_to_plot)
+}
+```
+
+
+# By Cultivar
+
+Scatter plot of results
+
+```{r}
+res_bycult_both %>% ggplot(aes(x=logFC.x, y=logFC.y)) + geom_point(alpha = 0.1)
+```
+
+```{r}
+res_bycult_both %>% ggplot(aes(x=logFC.x, y=logFC.y, color=group)) + geom_point(alpha = 0.1)
+```
+
+### Additive genes
+
+```{r}
+add1 <- res_bycult_both %>% filter((logFC.x > 0 & logFC.y < 0) | (logFC.x < 0 & logFC.y > 0))
+add1 %>% ggplot(aes(x=logFC.x, y=logFC.y, color=group)) + geom_point(alpha = 0.1)
+```
+
+GRMZM2G166979
+
+```{r}
+gene_to_plot <- "GRMZM2G166979"
+add1 %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=logFC.x, y=logFC.y, color=group)) + 
+  geom_point() +
+  ggtitle(paste(gene_to_plot, "log fold changes")) + 
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
+grps <- add1 %>% filter(gene == gene_to_plot) %>% select(group)
+spec_cultivars <- as.vector(do.call(cbind, contrast_groups[c(which(names(contrast_groups) %in% grps[,1]))]))
+#subset tpm_long for just those cultivars
+tpm_gene_group <- tpm_long %>% filter(gene == gene_to_plot) %>% filter(cultivar %in% spec_cultivars)
+tpm_gene_group %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- significant samples"))
+tpm_gene_group %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + geom_jitter(aes(color=cultivar)) + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- significant samples"))
+tpm_long %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+```
+
+GRMZM2G038827
+
+```{r}
+gene_to_plot <- "GRMZM2G038827"
+add1 %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=logFC.x, y=logFC.y, color=group)) + 
+  geom_point() +
+  ggtitle(paste(gene_to_plot, "log fold changes")) + 
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
+grps <- add1 %>% filter(gene == gene_to_plot) %>% select(group)
+spec_cultivars <- as.vector(do.call(cbind, contrast_groups[c(which(names(contrast_groups) %in% grps[,1]))]))
+#subset tpm_long for just those cultivars
+tpm_gene_group <- tpm_long %>% filter(gene == gene_to_plot) %>% filter(cultivar %in% spec_cultivars)
+tpm_gene_group %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- significant samples"))
+tpm_gene_group %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + geom_jitter(aes(color=cultivar)) + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- significant samples"))
+tpm_long %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+```
+
+GRMZM2G000288
+
+```{r} 
+gene_to_plot <- "GRMZM2G000288"
+add1 %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=logFC.x, y=logFC.y, color=group)) + 
+  geom_point() +
+  ggtitle(paste(gene_to_plot, "log fold changes")) + 
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
+grps <- add1 %>% filter(gene == gene_to_plot) %>% select(group)
+spec_cultivars <- as.vector(do.call(cbind, contrast_groups[c(which(names(contrast_groups) %in% grps[,1]))]))
+#subset tpm_long for just those cultivars
+tpm_gene_group <- tpm_long %>% filter(gene == gene_to_plot) %>% filter(cultivar %in% spec_cultivars)
+tpm_gene_group %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- significant samples"))
+tpm_gene_group %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + geom_jitter(aes(color=cultivar)) + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- significant samples"))
+tpm_long %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+```
+
+### Over-dominant genes
+
+
+
+```{r}
+od <- res_bycult_both %>% filter(logFC.x < 0 & logFC.y < 0)
+od %>% ggplot(aes(x=logFC.x, y=logFC.y, color=group)) + geom_point(alpha = 0.1)
+```
+
+Number of unique genes that are over-dominant
+
+```{r}
+n_distinct(od$gene)
+```
+
+```{r}
+table(od$group)
+```
+
+
+GRMZM2G003138
+
+```{r}
+gene_to_plot <- "GRMZM2G003138"
+res_bycult_both %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=logFC.x, y=logFC.y, color=group)) + geom_point() + 
+  xlim(NA, 0) + ylim(NA, 0) +
+  ggtitle(paste(gene_to_plot, "log fold changes")) + 
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
+grps <- res_bycult_both %>% filter(gene == gene_to_plot) %>% select(group)
+spec_cultivars <- as.vector(do.call(cbind, contrast_groups[c(which(names(contrast_groups) %in% grps[,1]))]))
+#subset tpm_long for just those cultivars
+tpm_gene_group <- tpm_long %>% filter(gene == gene_to_plot) %>% filter(cultivar %in% spec_cultivars)
+tpm_gene_group %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- significant samples"))
+tpm_gene_group %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + 
+  geom_jitter(aes(color=cultivar)) + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- significant samples"))
+tpm_long %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=genotype, y=tpm)) + geom_violin() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+```
+
+GRMZM2G307368
+
+```{r}
+gene_to_plot <- "GRMZM2G307368"
+res_bycult_both %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=logFC.x, y=logFC.y, color=group)) + geom_point() + 
+  xlim(NA, 0) + ylim(NA, 0) +
+  ggtitle(paste(gene_to_plot, "log fold changes")) + 
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
+res_bycult %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=logFC.x, y=logFC.y, color=group)) + geom_jitter() + 
+  ggtitle(paste(gene_to_plot, "log fold changes")) + 
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
+grps <- res_bycult_both %>% filter(gene == gene_to_plot) %>% select(group)
+spec_cultivars <- as.vector(do.call(cbind, contrast_groups[c(which(names(contrast_groups) %in% grps[,1]))]))
+#subset tpm_long for just those cultivars
+tpm_gene_group <- tpm_long %>% filter(gene == gene_to_plot) %>% filter(cultivar %in% spec_cultivars)
+tpm_gene_group %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- significant samples"))
+tpm_gene_group %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + 
+  geom_jitter(aes(color=cultivar)) + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- significant samples"))
+tpm_long %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=genotype, y=tpm)) + geom_violin() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+```
+
+### Under-dominant genes
+
+```{r}
+ud <- res_bycult_both %>% filter(logFC.x > 0 & logFC.y > 0)
+ud %>% ggplot(aes(x=logFC.x, y=logFC.y, color=group)) + geom_point(alpha = 0.1)
+```
+
+```{r}
+n_distinct(ud$gene)
+```
+
+```{r}
+table(ud$group)
+```
+
+
+AC149475.2
+
+```{r}
+gene_to_plot <- "AC149475.2"
+res_bycult_both %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=logFC.x, y=logFC.y, color=group)) + geom_point() + 
+  xlim(0, NA) + ylim(0, NA) +
+  ggtitle(paste(gene_to_plot, "log fold changes"))
+res_bycult %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=logFC.x, y=logFC.y, color=group)) + geom_point() + 
+  ggtitle(paste(gene_to_plot, "log fold changes"))
+grps <- res_bycult_both %>% filter(gene == gene_to_plot) %>% select(group)
+spec_cultivars <- as.vector(do.call(cbind, contrast_groups[c(which(names(contrast_groups) %in% grps[,1]))]))
+#subset tpm_long for just those cultivars
+tpm_gene_group <- tpm_long %>% filter(gene == gene_to_plot) %>% filter(cultivar %in% spec_cultivars)
+
+tpm_gene_group %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- significant samples"))
+
+tpm_gene_group %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + geom_jitter(aes(color=cultivar)) + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- significant samples"))
+
+tpm_long %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + 
+  geom_jitter(aes(color=cultivar)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+```
+
+
+GRMZM2G007729
+
+```{r}
+gene_to_plot <- "GRMZM2G007729"
+res_bycult_both %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=logFC.x, y=logFC.y, color=group)) + geom_point() + 
+  xlim(0, NA) + ylim(0, NA) +
+  ggtitle(paste(gene_to_plot, "log fold changes"))
+res_bycult %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=logFC.x, y=logFC.y, color=group)) + geom_point() + 
+    xlim(0, NA) + ylim(0, NA) +
+  ggtitle(paste(gene_to_plot, "log fold changes"))
+grps <- res_bycult_both %>% filter(gene == gene_to_plot) %>% select(group)
+spec_cultivars <- as.vector(do.call(cbind, contrast_groups[c(which(names(contrast_groups) %in% grps[,1]))]))
+#subset tpm_long for just those cultivars
+tpm_gene_group <- tpm_long %>% filter(gene == gene_to_plot) %>% filter(cultivar %in% spec_cultivars)
+tpm_gene_group %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- significant samples"))
+tpm_gene_group %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + geom_jitter(aes(color=cultivar)) + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- significant samples"))
+tpm_long %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + 
+  geom_jitter(aes(color=cultivar)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+```
+
+### GO term enrichment in dis-regulated genes
+
+```{r message=FALSE}
+library(topGO)
+#agrigo <- read.table("~/Box Sync/Projects/GOmaize/db/maize_v3.agrigo.f.db", header=F, sep="\t")
+#argot <- read.table("~/Box Sync/Projects/GOmaize/db/maize_v3.argot2.f.db", header=F, sep="\t")
+```
+
+```{r}
+gene_universe <- rownames(gene_tpm)
+maize.gene2GO <- readMappings(file = "~/Box Sync/Projects/GOmaize/db/maize.agrigo.all.f.db")
+agrigo.gene2GO <- readMappings(file= "~/Box Sync/Projects/GOmaize/db/maize_v3.agrigo.f.db")
+
+```
+
+Test for enriched GO terms for overdominant genes
+
+Create a names list of either 1 or 0 for genes that are overdominant or not.
+
+```{r}
+od_genes <- unique(od$gene)
+geneList <- rep(0, dim(gene_tpm)[1])
+names(geneList) <- rownames(gene_tpm)
+for (i in 1:length(geneList)) {
+  if(names(geneList)[i] %in% od_genes) {
+    geneList[i] <- 1
+  }
+}
+sum(geneList)
+geneList <- as.factor(geneList)
+```
+
+Creat topGo object and run Fisher test
+
+```{r}
+od_godata <- new("topGOdata", ontology = "MF",
+                 allGenes = geneList,
+                 annot = annFUN.gene2GO, gene2GO = maize.gene2GO)
+result_fisher <- runTest(od_godata, algorithm = "classic", statistic = "fisher")
+od_MF <- GenTable(od_godata, classicFisher = result_fisher, 
+                     orderBy = "classicFisher",
+                     ranksOf = "classicFisher",
+                     topNodes = 20)
+od_MF
+```
+
+GO terms for underdominant genes
+
+```{r}
+ud_genes <- unique(ud$gene)
+geneList <- rep(0, dim(gene_tpm)[1])
+names(geneList) <- rownames(gene_tpm)
+for (i in 1:length(geneList)) {
+  if(names(geneList)[i] %in% ud_genes) {
+    geneList[i] <- 1
+  }
+}
+sum(geneList)
+geneList <- as.factor(geneList)
+
+ud_godata <- new("topGOdata", ontology = "MF",
+                 allGenes = geneList,
+                 annot = annFUN.gene2GO, gene2GO = maize.gene2GO)
+result_fisher <- runTest(ud_godata, algorithm = "classic", statistic = "fisher")
+ud_MF <- GenTable(ud_godata, classicFisher = result_fisher, 
+                     orderBy = "classicFisher",
+                     ranksOf = "classicFisher",
+                     topNodes = 20)
+ud_MF
+```
+
+GO terms for the additive genes
+
+```{r}
+add_genes <- unique(add1$gene)
+geneList <- rep(0, dim(gene_tpm)[1])
+names(geneList) <- rownames(gene_tpm)
+for (i in 1:length(geneList)) {
+  if(names(geneList)[i] %in% add_genes) {
+    geneList[i] <- 1
+  }
+}
+sum(geneList)
+geneList <- as.factor(geneList)
+
+add_godata <- new("topGOdata", ontology = "MF",
+                 allGenes = geneList,
+                 annot = annFUN.gene2GO, gene2GO = maize.gene2GO)
+result_fisher <- runTest(add_godata, algorithm = "classic", statistic = "fisher")
+add_MF <- GenTable(add_godata, classicFisher = result_fisher, 
+                     orderBy = "classicFisher",
+                     ranksOf = "classicFisher",
+                     topNodes = 20)
+add_MF
+```
+
+
+# By Genotype
+
+By either maize, teosinte, or F1, with no distinction between cultivars
+
+```{r}
+res_bygeno_both %>% ggplot(aes(x=logFC.x, y=logFC.y)) + geom_point(alpha = 0.1)
+```
+
+### Additive genes
+
+```{r}
+additive <- res_bygeno_both %>% filter((logFC.x > 0 & logFC.y < 0) | (logFC.x < 0 & logFC.y > 0))
+additive %>% ggplot(aes(x=logFC.x, y=logFC.y)) + geom_point(alpha = 0.1)
+```
+
+GRMZM2G029039
+
+```{r}
+gene_to_plot <- "GRMZM2G037500"
+res_bygeno_both %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=logFC.x, y=logFC.y)) + 
+  geom_point() +
+  ggtitle(paste(gene_to_plot, "log fold changes")) + 
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
+#spec_cultivars <- as.vector(do.call(cbind, contrast_groups[c(which(names(contrast_groups) %in% grps[,1]))]))
+#subset tpm_long for just those cultivars
+tpm_goi <- tpm_long %>% filter(gene == gene_to_plot)
+tpm_goi %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + geom_jitter(aes(color=cultivar)) + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- significant samples"))
+tpm_long %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+```
+
+GRMZM2G162388
+
+
+```{r}
+gene_to_plot <- "GRMZM2G162388"
+res_bygeno_both %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=logFC.x, y=logFC.y)) + 
+  geom_point() +
+  ggtitle(paste(gene_to_plot, "log fold changes")) + 
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
+#spec_cultivars <- as.vector(do.call(cbind, contrast_groups[c(which(names(contrast_groups) %in% grps[,1]))]))
+#subset tpm_long for just those cultivars
+tpm_goi <- tpm_long %>% filter(gene == gene_to_plot)
+tpm_goi %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + geom_jitter(aes(color=cultivar)) + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+tpm_long %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+```
+
+### Overdominant genes
+
+```{r}
+od_geno <- res_bygeno_both %>% filter(logFC.x < 0 & logFC.y < 0)
+od_geno %>% ggplot(aes(x=logFC.x, y=logFC.y)) + geom_point(alpha = 0.1)
+```
+
+GRMZM2G070011
+
+```{r}
+gene_to_plot <- "GRMZM2G070011"
+res_bygeno_both %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=logFC.x, y=logFC.y)) + 
+  geom_point() +
+  ggtitle(paste(gene_to_plot, "log fold changes")) + 
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
+#spec_cultivars <- as.vector(do.call(cbind, contrast_groups[c(which(names(contrast_groups) %in% grps[,1]))]))
+#subset tpm_long for just those cultivars
+tpm_goi <- tpm_long %>% filter(gene == gene_to_plot)
+tpm_goi %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + geom_jitter(aes(color=cultivar)) + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+tpm_long %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+```
+
+GRMZM2G025832
+
+```{r}
+gene_to_plot <- "GRMZM2G025832"
+res_bygeno_both %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=logFC.x, y=logFC.y)) + 
+  geom_point() +
+  ggtitle(paste(gene_to_plot, "log fold changes")) + 
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
+#spec_cultivars <- as.vector(do.call(cbind, contrast_groups[c(which(names(contrast_groups) %in% grps[,1]))]))
+#subset tpm_long for just those cultivars
+tpm_goi <- tpm_long %>% filter(gene == gene_to_plot)
+tpm_goi %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + geom_jitter(aes(color=cultivar)) + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+tpm_long %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+```
+
+### Underdominant genes
+
+```{r}
+ud_geno <- res_bygeno_both %>% filter(logFC.x > 0 & logFC.y > 0)
+ud_geno %>% ggplot(aes(x=logFC.x, y=logFC.y)) + geom_point(alpha = 0.1)
+```
+
+GRMZM2G087809
+
+```{r}
+gene_to_plot <- "GRMZM2G087809"
+res_bygeno_both %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=logFC.x, y=logFC.y)) + 
+  geom_point() +
+  ggtitle(paste(gene_to_plot, "log fold changes")) + 
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
+#spec_cultivars <- as.vector(do.call(cbind, contrast_groups[c(which(names(contrast_groups) %in% grps[,1]))]))
+#subset tpm_long for just those cultivars
+tpm_goi <- tpm_long %>% filter(gene == gene_to_plot)
+tpm_goi %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + geom_jitter(aes(color=cultivar)) + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+tpm_long %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+```
+
+GRMZM2G033555
+```{r}
+gene_to_plot <- "GRMZM2G033555"
+res_bygeno_both %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=logFC.x, y=logFC.y)) + 
+  geom_point() +
+  ggtitle(paste(gene_to_plot, "log fold changes")) + 
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
+#spec_cultivars <- as.vector(do.call(cbind, contrast_groups[c(which(names(contrast_groups) %in% grps[,1]))]))
+#subset tpm_long for just those cultivars
+tpm_goi <- tpm_long %>% filter(gene == gene_to_plot)
+tpm_goi %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + geom_jitter(aes(color=cultivar)) + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+tpm_long %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+```
+
+GRMZM2G104610
+
+```{r}
+gene_to_plot <- "GRMZM2G104610"
+res_bygeno_both %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=logFC.x, y=logFC.y)) + 
+  geom_point() +
+  ggtitle(paste(gene_to_plot, "log fold changes")) + 
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
+#spec_cultivars <- as.vector(do.call(cbind, contrast_groups[c(which(names(contrast_groups) %in% grps[,1]))]))
+#subset tpm_long for just those cultivars
+tpm_goi <- tpm_long %>% filter(gene == gene_to_plot)
+tpm_goi %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + geom_jitter(aes(color=cultivar)) + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+tpm_long %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+tpm_long %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=sample, y=tpm, fill=genotype)) + geom_bar(stat = "identity") + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+```
+
+GRMZM2G139565
+
+```{r}
+gene_to_plot <- "GRMZM2G139565"
+res_bygeno_both %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=logFC.x, y=logFC.y)) + 
+  geom_point() +
+  ggtitle(paste(gene_to_plot, "log fold changes")) + 
+  geom_vline(xintercept = 0) + geom_hline(yintercept = 0)
+#spec_cultivars <- as.vector(do.call(cbind, contrast_groups[c(which(names(contrast_groups) %in% grps[,1]))]))
+#subset tpm_long for just those cultivars
+tpm_goi <- tpm_long %>% filter(gene == gene_to_plot)
+tpm_goi %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + geom_jitter(aes(color=cultivar)) + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+tpm_long %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=genotype, y=tpm)) + geom_boxplot() + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+tpm_long %>% filter(gene == gene_to_plot) %>% ggplot(aes(x=sample, y=tpm, fill=genotype)) + geom_bar(stat = "identity") + theme(axis.text.x = element_text(angle = 45, hjust = 1)) + ggtitle(paste(gene_to_plot, "- all samples"))
+```
+
+
+### GO terms for gene categories
+
+Over dominant
+
+```{r}
+od_geno_genes <- unique(od_geno$gene)
+geneList <- rep(0, dim(gene_tpm)[1])
+names(geneList) <- rownames(gene_tpm)
+for (i in 1:length(geneList)) {
+  if(names(geneList)[i] %in% od_geno_genes) {
+    geneList[i] <- 1
+  }
+}
+sum(geneList)
+geneList <- as.factor(geneList)
+
+od_geno_godata <- new("topGOdata", ontology = "MF",
+                 allGenes = geneList,
+                 annot = annFUN.gene2GO, gene2GO = maize.gene2GO)
+result_fisher <- runTest(od_geno_godata, algorithm = "classic", statistic = "fisher")
+od_geno_MF <- GenTable(od_geno_godata, classicFisher = result_fisher, 
+                     orderBy = "classicFisher",
+                     ranksOf = "classicFisher",
+                     topNodes = 20)
+od_geno_MF
+```
+
+Underdominant
+
+```{r}
+ud_geno_genes <- unique(ud_geno$gene)
+geneList <- rep(0, dim(gene_tpm)[1])
+names(geneList) <- rownames(gene_tpm)
+for (i in 1:length(geneList)) {
+  if(names(geneList)[i] %in% ud_geno_genes) {
+    geneList[i] <- 1
+  }
+}
+sum(geneList)
+geneList <- as.factor(geneList)
+
+ud_geno_godata <- new("topGOdata", ontology = "MF",
+                 allGenes = geneList,
+                 annot = annFUN.gene2GO, gene2GO = maize.gene2GO)
+result_fisher <- runTest(ud_geno_godata, algorithm = "classic", statistic = "fisher")
+ud_geno_MF <- GenTable(ud_geno_godata, classicFisher = result_fisher, 
+                     orderBy = "classicFisher",
+                     ranksOf = "classicFisher",
+                     topNodes = 20)
+ud_geno_MF
+```
+
+Additive Genes
+
+```{r}
+add_geno_genes <- unique(additive$gene)
+geneList <- rep(0, dim(gene_tpm)[1])
+names(geneList) <- rownames(gene_tpm)
+for (i in 1:length(geneList)) {
+  if(names(geneList)[i] %in% add_geno_genes) {
+    geneList[i] <- 1
+  }
+}
+sum(geneList)
+geneList <- as.factor(geneList)
+
+add_geno_godata <- new("topGOdata", ontology = "MF",
+                 allGenes = geneList,
+                 annot = annFUN.gene2GO, gene2GO = maize.gene2GO)
+result_fisher <- runTest(add_geno_godata, algorithm = "classic", statistic = "fisher")
+add_geno_MF <- GenTable(add_geno_godata, classicFisher = result_fisher, 
+                     orderBy = "classicFisher",
+                     ranksOf = "classicFisher",
+                     topNodes = 20)
+add_geno_MF
+```
+
+# Clustering and heatmaps - by cultivar
+
+### Heatmap for underdominant genes
+
+subset the wide tpm data frame for just the underdominant genes
+```{r}
+ud_tpm <- gene_tpm[rownames(gene_tpm) %in% ud$gene,]
+ud_tpm_long <- tpm_long[tpm_long$gene %in% ud$gene,]
+dim(ud_tpm); dim(ud); dim(ud_tpm_long)
+```
+
+The actual number of genes that are cosidered to be underdominant is:
+
+```{r}
+n_distinct(ud$gene)
+```
+
+Use heatmap.2 from gplots
+
+
+```{r eval=FALSE}
+heatmap.2(t(ud_tpm), trace = "none", scale="column", Rowv = levels(meta_leaf$sample), dendrogram = "column")
+heatmap.2(t(ud_tpm), trace = "none", scale="column")
+```
+
+And only a few cultivares for these genes are underdominantn
+
+```{r eval=FALSE}
+# for each gene in the underdominant genes,
+for (i in 1:dim(ud)[1]) {
+# identify the cultivars within the group
+# and identify the sample number associated with those cultivars
+}
+grps <- res_bycult_both %>% filter(gene == gene_to_plot) %>% select(group)
+spec_cultivars <- as.vector(do.call(cbind, contrast_groups[c(which(names(contrast_groups) %in% grps[,1]))]))
+```
+
