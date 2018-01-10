@@ -1,56 +1,0 @@
-==========================================
-SLURM_JOB_ID = 15054666
-SLURM_NODELIST = c8-88
-==========================================
-Module slurm/16.05.8 loaded 
-Module openmpi/2.0.1 loaded 
-Module kallisto/default v0.42.3 loaded 
-kallisto, version 0.42.3
-
-[build] loading fasta file data/raw/SRR1586620_pass.fasta.gz
-[build] k-mer length: 31
-[build] warning: clipped off poly-A tail (longer than 10)
-        from 5769 target sequences
-[build] warning: replaced 10204379 non-ACGUT characters in the input sequence
-        with pseudorandom nucleotides
-[build] counting k-mers ... done.
-[build] building target de Bruijn graph ...  done 
-[build] creating equivalence classes ...  done
-[build] target de Bruijn graph has 23454298 contigs and contains 279181892 k-mers 
-
-index error: 0
-
-[quant] fragment length distribution is truncate gaussian with mean = 101, sd = 20
-[index] k-mer length: 31
-[index] number of targets: 9,672,551
-[index] number of k-mers: 279,181,892
-[index] number of equivalence classes: 22,453,350
-[quant] running in single-end mode
-[quant] will process file 1: data/raw/SRR1586620_pass_1.fastq.gz
-[quant] finding pseudoalignments for the reads ... done
-[quant] processed 9,672,551 reads, 9,670,490 reads pseudoaligned
-[   em] quantifying the abundances ... done
-[   em] the Expectation-Maximization algorithm ran for 760 rounds
-[bstrp] running EM for the bootstrap: 1[bstrp] running EM for the bootstrap: 2[bstrp] running EM for the bootstrap: 3[bstrp] running EM for the bootstrap: 4[bstrp] running EM for the bootstrap: 5[bstrp] running EM for the bootstrap: 6[bstrp] running EM for the bootstrap: 7[bstrp] running EM for the bootstrap: 8[bstrp] running EM for the bootstrap: 9[bstrp] running EM for the bootstrap: 10[bstrp] running EM for the bootstrap: 11[bstrp] running EM for the bootstrap: 12[bstrp] running EM for the bootstrap: 13[bstrp] running EM for the bootstrap: 14[bstrp] running EM for the bootstrap: 15slurmstepd: error: *** JOB 15054666 ON c8-88 CANCELLED AT 2017-09-16T20:31:23 DUE TO TIME LIMIT ***
-
-===========================================================================
-Job Finished
-
-Name                : kallisto
-User                : caryn89
-Partition           : high
-Nodes               : c8-88
-Cores               : 19
-State               : CANCELLED,TIMEOUT
-Submit              : 2017-09-16T16:30:53
-Start               : 2017-09-16T16:30:56
-End                 : 2017-09-16T20:31:23
-Reserved walltime   : 04:00:00
-Used walltime       : 04:00:27
-Used CPU time       : 03:34:08
-% User (Computation): 95.92%
-% System (I/O)      :  4.08%
-Mem reserved        : 50000M/node
-Max Mem used        : 32.16G (c8-88)
-Max Disk Write      : 10.98G (c8-88)
-Max Disk Read       : 11.38G (c8-88)

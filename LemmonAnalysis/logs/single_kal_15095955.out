@@ -1,43 +1,0 @@
-==========================================
-SLURM_JOB_ID = 15095955
-SLURM_NODELIST = c8-95
-==========================================
-Module slurm/16.05.8 loaded 
-Module openmpi/2.0.1 loaded 
-Module kallisto/default v0.42.3 loaded 
-kallisto, version 0.42.3
-
-[quant] fragment length distribution is truncate gaussian with mean = 101, sd = 20
-[index] k-mer length: 31
-[index] number of targets: 9,672,551
-[index] number of k-mers: 279,181,892
-[index] number of equivalence classes: 22,453,350
-[quant] running in single-end mode
-[quant] will process file 1: data/raw/SRR1586620_pass_1.fastq.gz
-[quant] finding pseudoalignments for the reads ... done
-[quant] processed 9,672,551 reads, 9,670,490 reads pseudoaligned
-[   em] quantifying the abundances ... done
-[   em] the Expectation-Maximization algorithm ran for 760 rounds
-[bstrp] running EM for the bootstrap: 1[bstrp] running EM for the bootstrap: 2[bstrp] running EM for the bootstrap: 3[bstrp] running EM for the bootstrap: 4[bstrp] running EM for the bootstrap: 5[bstrp] running EM for the bootstrap: 6[bstrp] running EM for the bootstrap: 7[bstrp] running EM for the bootstrap: 8[bstrp] running EM for the bootstrap: 9[bstrp] running EM for the bootstrap: 10[bstrp] running EM for the bootstrap: 11[bstrp] running EM for the bootstrap: 12[bstrp] running EM for the bootstrap: 13[bstrp] running EM for the bootstrap: 14[bstrp] running EM for the bootstrap: 15[bstrp] running EM for the bootstrap: 16[bstrp] running EM for the bootstrap: 17[bstrp] running EM for the bootstrap: 18[bstrp] running EM for the bootstrap: 19[bstrp] running EM for the bootstrap: 20[bstrp] running EM for the bootstrap: 21[bstrp] running EM for the bootstrap: 22[bstrp] running EM for the bootstrap: 23[bstrp] running EM for the bootstrap: 24[bstrp] running EM for the bootstrap: 25[bstrp] running EM for the bootstrap: 26[bstrp] running EM for the bootstrap: 27[bstrp] running EM for the bootstrap: 28[bstrp] running EM for the bootstrap: 29[bstrp] running EM for the bootstrap: 30[bstrp] running EM for the bootstrap: 31[bstrp] running EM for the bootstrap: 32[bstrp] running EM for the bootstrap: 33[bstrp] running EM for the bootstrap: 34[bstrp] running EM for the bootstrap: 35[bstrp] running EM for the bootstrap: 36[bstrp] running EM for the bootstrap: 37[bstrp] running EM for the bootstrap: 38[bstrp] running EM for the bootstrap: 39[bstrp] running EM for the bootstrap: 40[bstrp] running EM for the bootstrap: 41[bstrp] running EM for the bootstrap: 42[bstrp] running EM for the bootstrap: 43[bstrp] running EM for the bootstrap: 44[bstrp] running EM for the bootstrap: 45slurmstepd: error: *** JOB 15095955 ON c8-95 CANCELLED AT 2017-09-18T01:34:01 DUE TO TIME LIMIT ***
-
-===========================================================================
-Job Finished
-
-Name                : SRR1586620
-User                : caryn89
-Partition           : high
-Nodes               : c8-95
-Cores               : 19
-State               : CANCELLED,TIMEOUT
-Submit              : 2017-09-17T16:33:35
-Start               : 2017-09-17T16:33:36
-End                 : 2017-09-18T01:34:01
-Reserved walltime   : 09:00:00
-Used walltime       : 09:00:25
-Used CPU time       : 08:59:12
-% User (Computation): 99.39%
-% System (I/O)      :  0.61%
-Mem reserved        : 50000M/node
-Max Mem used        : 30.62G (c8-95)
-Max Disk Write      : 1.63G (c8-95)
-Max Disk Read       : 10.98G (c8-95)

@@ -1,34 +1,0 @@
-==========================================
-SLURM_JOB_ID = 15220517
-SLURM_NODELIST = c10-68
-==========================================
-Module slurm/16.05.8 loaded 
-Module openmpi/2.0.1 loaded 
-Module kallisto/default v0.42.3 loaded 
-kallisto, version 0.42.3
-mkdir: cannot create directory ‘data/bootstrap100/SRR1586618’: File exists
-[bstrp] running EM for the bootstrap: 70===================================
-Job Finished
-
-Name                : b100_kallisto
-User                : caryn89
-Partition           : high
-Nodes               : c10-68
-Cores               : 19
-State               : RUNNING
-Submit              : 2017-09-22T13:48:40
-Start               : 2017-09-22T13:50:42
-End                 : --
-Reserved walltime   : 09:00:00
-Used walltime       : 00:00:02
-Used CPU time       : --
-% User (Computation): --
-% System (I/O)      : --
-Mem reserved        : 50000M/node
-Max Mem used        : 0.00  ()
-Max Disk Write      : 0.00  ()
-Max Disk Read       : 0.00  ()
-[bstrp] running EM for the bootstrap: 71[bstrp] running EM for the bootstrap: 72[bstrp] running EM for the bootstrap: 73[bstrp] running EM for the bootstrap: 74[bstrp] running EM for the bootstrap: 75[bstrp] running EM for the bootstrap: 76[bstrp] running EM for the bootstrap: 77[bstrp] running EM for the bootstrap: 78[bstrp] running EM for the bootstrap: 79[bstrp] running EM for the bootstrap: 80[bstrp] running EM for the bootstrap: 81[bstrp] running EM for the bootstrap: 82[bstrp] running EM for the bootstrap: 83[bstrp] running EM for the bootstrap: 84[bstrp] running EM for the bootstrap: 85[bstrp] running EM for the bootstrap: 86[bstrp] running EM for the bootstrap: 87[bstrp] running EM for the bootstrap: 88[bstrp] running EM for the bootstrap: 89[bstrp] running EM for the bootstrap: 90[bstrp] running EM for the bootstrap: 91[bstrp] running EM for the bootstrap: 92[bstrp] running EM for the bootstrap: 93[bstrp] running EM for the bootstrap: 94[bstrp] running EM for the bootstrap: 95[bstrp] running EM for the bootstrap: 96[bstrp] running EM for the bootstrap: 97[bstrp] running EM for the bootstrap: 98[bstrp] running EM for the bootstrap: 99[bstrp] running EM for the bootstrap: 100
-
-kallisto error: 0
-kallisto quantification run time was 2799 s

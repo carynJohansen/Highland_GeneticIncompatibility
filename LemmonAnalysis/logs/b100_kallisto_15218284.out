@@ -1,10 +1,0 @@
-==========================================
-SLURM_JOB_ID = 15218284
-SLURM_NODELIST = c11-73
-==========================================
-Module slurm/16.05.8 loaded 
-Module openmpi/2.0.1 loaded 
-Module kallisto/default v0.42.3 loaded 
-kallisto, version 0.42.3
-mkdir: cannot create directory ‘data/bootstrap100/SRR1586621’: File exists
-[bstrp] running EM for the bootstrap: 48slurmstepd: error: *** JOB 15218284 ON c10-96 FAILED (non-zero exit code or other failure mode) ***

@@ -1,46 +1,0 @@
-==========================================
-SLURM_JOB_ID = 15163075
-SLURM_NODELIST = c8-95
-==========================================
-Module slurm/16.05.8 loaded 
-Module openmpi/2.0.1 loaded 
-Module kallisto/default v0.42.3 loaded 
-kallisto, version 0.42.3
-
-[quant] fragment length distribution is truncate gaussian with mean = 101, sd = 20
-[index] k-mer length: 31
-[index] number of targets: 39,161
-[index] number of k-mers: 52,296,340
-[index] number of equivalence classes: 133,382
-[quant] running in single-end mode
-[quant] will process file 1: data/raw/SRR1586620_pass_1.fastq.gz
-[quant] finding pseudoalignments for the reads ... done
-[quant] processed 9,672,551 reads, 7,163,641 reads pseudoaligned
-[   em] quantifying the abundances ... done
-[   em] the Expectation-Maximization algorithm ran for 878 rounds
-[bstrp] running EM for the bootstrap: 1[bstrp] running EM for the bootstrap: 2[bstrp] running EM for the bootstrap: 3[bstrp] running EM for the bootstrap: 4[bstrp] running EM for the bootstrap: 5[bstrp] running EM for the bootstrap: 6[bstrp] running EM for the bootstrap: 7[bstrp] running EM for the bootstrap: 8[bstrp] running EM for the bootstrap: 9[bstrp] running EM for the bootstrap: 10[bstrp] running EM for the bootstrap: 11[bstrp] running EM for the bootstrap: 12[bstrp] running EM for the bootstrap: 13[bstrp] running EM for the bootstrap: 14[bstrp] running EM for the bootstrap: 15[bstrp] running EM for the bootstrap: 16[bstrp] running EM for the bootstrap: 17[bstrp] running EM for the bootstrap: 18[bstrp] running EM for the bootstrap: 19[bstrp] running EM for the bootstrap: 20[bstrp] running EM for the bootstrap: 21[bstrp] running EM for the bootstrap: 22[bstrp] running EM for the bootstrap: 23[bstrp] running EM for the bootstrap: 24[bstrp] running EM for the bootstrap: 25[bstrp] running EM for the bootstrap: 26[bstrp] running EM for the bootstrap: 27[bstrp] running EM for the bootstrap: 28[bstrp] running EM for the bootstrap: 29[bstrp] running EM for the bootstrap: 30[bstrp] running EM for the bootstrap: 31[bstrp] running EM for the bootstrap: 32[bstrp] running EM for the bootstrap: 33[bstrp] running EM for the bootstrap: 34[bstrp] running EM for the bootstrap: 35[bstrp] running EM for the bootstrap: 36[bstrp] running EM for the bootstrap: 37[bstrp] running EM for the bootstrap: 38[bstrp] running EM for the bootstrap: 39[bstrp] running EM for the bootstrap: 40[bstrp] running EM for the bootstrap: 41[bstrp] running EM for the bootstrap: 42[bstrp] running EM for the bootstrap: 43[bstrp] running EM for the bootstrap: 44[bstrp] running EM for the bootstrap: 45[bstrp] running EM for the bootstrap: 46[bstrp] running EM for the bootstrap: 47[bstrp] running EM for the bootstrap: 48[bstrp] running EM for the bootstrap: 49[bstrp] running EM for the bootstrap: 50
-
-kallisto error: 0
-kallisto quantification run time was 207 s
-
-===========================================================================
-Job Finished
-
-Name                : T01_kallisto
-User                : caryn89
-Partition           : high
-Nodes               : c8-95
-Cores               : 19
-State               : COMPLETED
-Submit              : 2017-09-19T10:16:57
-Start               : 2017-09-19T10:17:00
-End                 : 2017-09-19T10:20:28
-Reserved walltime   : 09:00:00
-Used walltime       : 00:03:28
-Used CPU time       : 00:03:11
-% User (Computation): 98.88%
-% System (I/O)      :  1.12%
-Mem reserved        : 50000M/node
-Max Mem used        : 1.69G (c8-95)
-Max Disk Write      : 7.00M (c8-95)
-Max Disk Read       : 1.90G (c8-95)
