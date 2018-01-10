@@ -7,6 +7,8 @@ output:
   pdf_document: default
 ---
 
+
+
 # Introduction
 
 ## Genetic Incompatibiltiy
@@ -28,346 +30,1339 @@ The focus here is on phenotypic evolution, that cis-regulation has a large effec
 
 # Methods
 
-```{r}
+```{r message=FALSE}
+library(Matrix)
+library(caret)
+library(tidyverse)
 library(lme4)
-library(ggplot2)
+library(arm)
 ```
 
-## Model for estimating trans effects
+## Experiments to test experimental design and fixed effects
 
-The purpose of this section is to use randomly generated data to determine if a linear model could 
-provide the information we desire on the trans effect.
+Conducted simulation experiments to test different field designs and different model comparisons, to find models that can identify different genomic interaction effects.
 
-Load the design matrix
+The three different field designs that I test here are:
 
-```{r}
-dm <- read.table("designMatrix.csv", sep=",", header=T)
+1. Sparse, which has only landraces X_sprse B73 F1s and landrace X_sprse landrace F1s
+2. Expanded, which has inbred B73 in addition to the sparse crosses
+3. Full, which has landrace parents in addition to the expanded set up.
+
+Here, I used a linear mixed model with plant ID used as the random effect, and gene expression as the **measured** variable. [measured is not the right word here.]
+The fixed effects are the cis and trans regualtory effects on the gene expression, and the interaction terms between cis and trans effects.
+
+I first generated a design matrix for each of the field designs, which included biological replicates.
+Then, for each fixed effect, I first simulated gene expression as if that first effect has a true impact, then compared the full model to an alternative model.
+The comparison was performed using the `anova()` function in R, and the p-value was stored.
+A significant p-value in this case indicated that the two models were significantly different in their ability to detect the true effect that I simulated.
+
+The algorithm goes as such:
+
+```
+For each column of the design matrix:
+  generate a (0) vector of the length of that column, the change the zero for that column index to a 1
+  generate an effect for that column by multiplying the effect vector by the design matrix, then adding a very small error
+  
+  generate the full random effect model results, using the full model
+  generate the alternative randome effect model results, using the alternative model
+  run anova comparing the two models
+  store the p-values
+  repeat for each column
 ```
 
-This design matrix includes some of the crosses that I will have access to, but the crosses not included do not 
-add any new information in terms of allele information.
-I have crosses between Mexican highland races and B73, Andes highland races and B73, and between MExican highland 
-and Andes highland. Each plant of each cross has two rows, one for each allele.
+I used the threshold 1e-10 as a cutoff for significant difference between the full model and the alternative model.
 
-The rest of the design matrix contains either a 1 or 0 to indicate presence/absence of information. I am testing out
-different linear models to estimate what information I can and cannot get from this experiment design. 
-
+The goal is to identify models that can identify genomic interactions between the Mexican and South American landraces.
 To estimate genetic interactions between mexican and south american landraces, I need to be able to calculate the 
-trans interaction between Mexican (m) and South American (s) genomic backgrounds. This is the trans_ms component.
+trans interaction between Mexican (m) and South American (s) genomic backgrounds. 
+This is the trans_ms component.
+Also, a cis effect existing in only one of the landrace backgrounds (i.e. $cis_Mtrans_S$, $cis_Strans_M$, $cis_Strans_{MS}$, or $cis_Mtrans_{MS}$)
 
-### simulate tpm data
+## Design Matrices
 
-Randomly get gene expression from the simulated data for each plant allele
-
-```{r}
-y <- rnorm(1e4, mean = 0.679, sd = 0.8)
-y <- subset(y, y>-0.3)
-hist(y, breaks = 100)
-allele_tpm_log <- sample(y, size=nrow(dm))
-allele_tpm_log
-allele_tpm <- 10**(allele_tpm_log)
-allele_tpm
-dm$tpm <- allele_tpm
-```
-
-### Plant ID as random effect
-
-Including PlantID as a random effect
+#### 1. Sparse
 
 ```{r}
-dm$PlantID <- as.factor(dm$PlantID)
-fit2 <- lmer(tpm ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + trans_ms +
-            cis_m_trans_m + cis_s_trans_m +
-            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
-            cis_s_trans_ms, data = dm)
-summary(fit2)
-fit3 <- lmer(tpm ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + 
-            cis_m_trans_m + cis_s_trans_s, data = dm)
-summary(fit3)
-anova(fit2,fit3)
+sparse <- data.frame(cis=rep(c("B","S","M"),2))
+sparse$T1 <- rep(c("BS","BM","MS"), each=2)
 
+sparse$TM <- c(0,1)[grepl('M',sparse$T1)+1]
+sparse$TS <- c(0,1)[grepl('S', sparse$T1)+1]
+sparse$TB <- c(0,1)[grepl('B', sparse$T1)+1]
+
+dm_sparse <- as.data.frame(model.matrix(~cis*TM*TS,sparse))
+dm_sparse <- as.data.frame(rbind(dm_sparse, dm_sparse, dm_sparse))
+dm_sparse$allele <- rep(sparse$cis, 3)
+dm_sparse$cross <- as.factor(rep(sparse$T1,3))
+dm_sparse$PlantID <- rep(1:9, each=2)
+colnames(dm_sparse)
+```
+```{r}
+X_sprse <- as.matrix(dm_sparse[,-c(13:15)])
+image(Matrix(X_sprse))
 ```
 
-The values from the ANOVA indicate that these two models are extremely similar. 
-Fit 3 is slightly better, according to AIC, but by 2. So barely, if not at all.
 
-### linear combos
-
-In order to determine which combinations of the equation components are highly correlated, use linearCombos
+#### 2. Expanded
 
 ```{r}
-dm$PlantID <- as.factor(dm$PlantID)
-mm2 <- model.matrix(tpm ~ cis_m + cis_s + trans_m + trans_s + trans_ms +
-            cis_m_trans_m + cis_s_trans_m +
-            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
-            cis_s_trans_ms, data = dm)
+expd <- data.frame(cis=c("B","B",rep(c("B","S","M"), 2)))
+expd$T1 <- rep(c("BB","BS","BM","MS"), each=2)
 
-linear_combos = caret::findLinearCombos(mm2[,-1]) #remove the intercept
-linear_combos
-colnames(mm2[,-1])
+expd$TB <- c(0,1)[grepl('B', expd$T1) + 1]
+expd$TM <- c(0,1)[grepl('M', expd$T1) + 1]
+expd$TS <- c(0,1)[grepl('S', expd$T1) + 1]
+dm_expd <- model.matrix(~cis*TM*TS,expd)
+dm_expd <- as.data.frame(rbind(dm_expd, dm_expd, dm_expd))
+dm_expd$allele <- rep(expd$cis, 3)
+dm_expd$cross <- as.factor(rep(expd$T1,3))
+dm_expd$PlantID <- rep(1:12, each=2)
+colnames(dm_expd)
+X_expd <- as.matrix(dm_expd[,-c(13:15)])
+image(Matrix(X_expd))
 ```
 
-This indicates that I cannot tell the difference between:
-
-cis_m_trans_m and cis_m - which makes sense and may not be that important
-
-cis_m_trans_s, trans_ms, cis_s_trans_m - which may also be ok, as I will mostly just be looking for trans_ms, and 
-the other two components are possible components of that trans_ms. But this also may eventually stifle 
-interpretation, as I will not be able to distinguish between the cis_s effect or the trans_m effect on a South 
-American allele of a gene, or vica versa.
+#### 3. Full
 
 ```{r}
-fit2_b <- lmer(tpm ~ (1|PlantID) +  trans_m + trans_s + trans_ms, data = dm)
-summary(fit2_b)
-
-
-fit3_b <- lmer(tpm ~ (1|PlantID) + trans_m + trans_s, data = dm)
-summary(fit3_b)
-
-
-anova(fit2_b, fit3_b) #the cis matters - and get cis from ASE
+full_d <- data.frame(cis=c(rep(c("B","M","S"),each=2),rep(c("B","S","M"), 2)))
+full_d$T1 <- rep(c("BB","MM","SS","BS","BM","MS"), each=2)
+full_d$TB <- c(0,1)[grepl('B', full_d$T1) + 1]
+full_d$TM <- c(0,1)[grepl('M', full_d$T1) + 1]
+full_d$TS <- c(0,1)[grepl('S', full_d$T1) + 1]
+dm_full <- model.matrix(~cis*TM*TS,full_d)
+dm_full <- as.data.frame(rbind(dm_full, dm_full, dm_full))
+dm_full$allele <- rep(full_d$cis, 3)
+dm_full$cross <- as.factor(rep(full_d$T1,3))
+dm_full$PlantID <- rep(1:18, each=2)
+colnames(dm_full)
+X_full <- as.matrix(dm_full[,-c(13:15)])
+image(Matrix(X_full))
 ```
 
-This set of linear models indicates that the cis information is necessary for calculating some of the trans effects.
-Therefore, I will have to do ASE.
 
-## Cis-trans effects are complicated
+#### linear combos
+
+Worth considering the linear combos for each design matrix
 
 ```{r}
-# test the models by adding effects to the coefficients iteratively
-X <- as.matrix(dm[,-c(1:4, 27)]) # remove non-design matrix information
-
-b <- rep(0,ncol(X))
-b[3] = 1
-y <- X %*% b + rnorm(nrow(X), mean=0, sd=1e-10)
-
-fit1 <- lmer(y ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + trans_ms +
-            cis_m_trans_m + cis_s_trans_m +
-            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
-            cis_s_trans_ms, data = dm)
-fit2 <- lmer(y ~ (1|PlantID) + cis_s + trans_m + trans_s + trans_ms +
-            cis_s_trans_m +
-            cis_s_trans_s + 
-            cis_s_trans_ms, data = dm)
-anova(fit1, fit2)
+colnames(X_sprse)[findLinearCombos(X_sprse)$remove]
+colnames(X_expd)[findLinearCombos(X_expd)$remove]
 ```
 
-This exercise is showing that I can't tell the difference between a cis component of my model, and the interaction feature, the cis-trans effects.
+### Full model
 
-Here, I'm testing between two models with and without the cis_m features.
+Unless otherwise stated, the full model used is:
+
+$$y \sim (1|PlantID) + cis_S + cis_M + trans_M + trans_S + trans_{MS} + cis_Mtrans_M + cis_Mtrans_S + cis_Strans_S + cis_Strans_M + cis_Mtrans_{MS} + cis_Strans_{MS}$$
+
+### One iteration, as a demonstration
+
+Simulating a $cis_M$ effect.
+
+The alternative model has removed any $cis_M$ effects
+
+```{r}
+i <- 3
+b <- rep(0, ncol(X_sprse))
+b[i] <- 1
+#simulate a cisM effect
+y <- X_sprse %*% b + rnorm(nrow(X_sprse), mean=0, sd=1e-10) #this generates a nX_sprse matrix, where n is the number of rows of X_sprse
+full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_sparse)
+display(full)
+alt <- lmer(y ~ (1|PlantID) + cisS + TM + TS + TM:TS + cisS:TM + cisS:TS + cisS:TM:TS, data=dm_sparse)
+display(alt)
+anova(full, alt)
+p <- anova(full, alt)$`Pr(>Chisq)`[2] # store the p-value
+p_value <- data.frame(variable=colnames(X_sprse)[i], p_value=p) # collect the p-values, and continue iterating over the rest of the columns
+
+```
+
+So, this shows that if there is a $cis_M$ effect, the alternative model is a much better fit, and can pick up the effect,
+Whereas the full model cannot pick up the effect.
+
+```{r}
+rm(i, b, y, alt, full, p, p_values_list)
+```
+
+
+# Sparse Design
+
+#### Interaction
 
 ```{r message=FALSE, warning=FALSE}
 p_values_list <- list()
 
-for ( i in 1:ncol(X)) {
-
-  b <- rep(0,ncol(X))
+for (i in 1:ncol(X_sprse)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_sprse))
   b[i] <- 1
-  
-  p_values <- c()
-  for (j in 1:10) {
-    y <- X %*% b + rnorm(nrow(X), mean=0, sd=1e-10)
-    tryCatch({
-      fit1 <- lmer(y ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + trans_ms +
-            cis_m_trans_m + cis_s_trans_m +
-            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
-            cis_s_trans_ms, data = dm)
-    }, error=function(c) NA)
-    tryCatch({
-       fit2 <- lmer(y ~ (1|PlantID) + cis_s + trans_m + trans_s + trans_ms +
-            cis_s_trans_m + cis_s_trans_s + cis_s_trans_ms, data = dm)
-    }, error=function(e) NA)
-    tryCatch({
-      p <- anova(fit1, fit2)$`Pr(>Chisq)`[2]
-    }, error=function(e) p <- NA)
-    p_values <- c(p_values, p)
-  }
-  p_values <- data.frame(variable=rep(colnames(X)[i],length(p_values)), p_values=p_values)
-  p_values_list[[i]] <- p_values
+  y <- X_sprse %*% b + rnorm(nrow(X_sprse), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_sparse )
+  alt <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + cisM:TM + cisS:TS, data=dm_sparse)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_sprse)[i], p_value=p)
+  p_values_list[[i]] <- p_value
 }
-
-p_cis_m <- do.call("rbind", p_values_list)
-
+sprs_interact <- do.call("rbind", p_values_list)
+sprs_interact$sigTF <- sprs_interact$p_value < 1e-10
+sprs_interact$model <- rep("interaction", nrow(sprs_interact))
 ```
 
-So I should see an even distribution of effects for simulated data for interaction terms, and low p-values for data from the 
+#### cis S
 
-plot the p-values
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
 
-```{r}
-ggplot(p_cis_m) + geom_boxplot(aes(x=as.factor(variable), y=p_values)) + 
+for (i in 1:ncol(X_sprse)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_sprse))
+  b[i] <- 1
+  y <- X_sprse %*% b + rnorm(nrow(X_sprse), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_sparse )
+  alt <- lmer(y ~ (1|PlantID)  + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisM:TM:TS, data=dm_sparse)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_sprse)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+sprs_cisS <- do.call("rbind", p_values_list)
+sprs_cisS$sigTF <- sprs_cisS$p_value < 1e-10
+sprs_cisS$model <- rep("cisS", nrow(sprs_cisS))
+ggplot(sprs_cisS) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) + 
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-The interpretation of this graph is that, in models where I have simulated the data, where every group on the x-axes
-I have created a true data set, the models in which I took out the cis-trans effect of the mexican background is significanly different than the full model.
-This indicates that I cannot unravel the effects of cis_m and it's trans-interaction variables. 
-
-Again, with cis_s and it's interactions effects:
+#### cis M
 
 ```{r message=FALSE, warning=FALSE}
 p_values_list <- list()
 
-for ( i in 1:ncol(X)) {
-
-  b <- rep(0,ncol(X))
+for (i in 1:ncol(X_sprse)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_sprse))
   b[i] <- 1
-  
-  p_values <- c()
-  for (j in 1:10) {
-    y <- X %*% b + rnorm(nrow(X), mean=0, sd=1e-10) #simulate data with current b-vector
-    tryCatch({ #fit 1, full model
-      fit1 <- lmer(y ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + trans_ms +
-            cis_m_trans_m + cis_s_trans_m +
-            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
-            cis_s_trans_ms, data = dm)
-    }, error=function(c) NA)
-    tryCatch({ #fit 2, reduced model, no cis_s effects
-       fit2 <- lmer(y ~ (1|PlantID) + cis_m + trans_m + trans_s + trans_ms +
-            cis_m_trans_m + cis_m_trans_s + cis_m_trans_ms, data = dm)
-    }, error=function(e) NA)
-    tryCatch({ #see if the models are different
-      p <- anova(fit1, fit2)$`Pr(>Chisq)`[2]
-    }, error=function(e) p <- NA)
-    p_values <- c(p_values, p)
-  }
-  p_values <- data.frame(variable=rep(colnames(X)[i],length(p_values)), p_values=p_values) #catch the p-values in a energy-inefficient structure that enables for easy graphing later.
-  p_values_list[[i]] <- p_values
+  y <- X_sprse %*% b + rnorm(nrow(X_sprse), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_sparse )
+  alt <- lmer(y ~ (1|PlantID)  + cisS + TM + TS + TM:TS + cisS:TM + cisS:TS + cisS:TM:TS, data=dm_sparse)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_sprse)[i], p_value=p)
+  p_values_list[[i]] <- p_value
 }
+sprs_cisM <- do.call("rbind", p_values_list)
+sprs_cisM$sigTF <- sprs_cisM$p_value < 1e-10
+sprs_cisM$model <- rep("cisM", nrow(sprs_cisM))
+ggplot(sprs_cisM) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
 
-p_cis_s <- do.call("rbind", p_values_list)
+Trying to separate out the interaction terms, cisM:TS and cisS:TM
+
+#### sprs1
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_sprse)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_sprse))
+  b[i] <- 1
+  y <- X_sprse %*% b + rnorm(nrow(X_sprse), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_sparse )
+  alt <- lmer(y ~ (1|PlantID) + cisS + cisM + TS + TM, data=dm_sparse)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_sprse)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+sprs1 <- do.call("rbind", p_values_list)
+sprs1$sigTF <- sprs1$p_value < 1e-10
+sprs1$model <- rep("sprs1", nrow(sprs1))
+#ggplot(sprs1) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+#  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### sprs2
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_sprse)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_sprse))
+  b[i] <- 1
+  y <- X_sprse %*% b + rnorm(nrow(X_sprse), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_sparse )
+  alt <- lmer(y ~ (1|PlantID) + cisS + cisM + cisM:TM + cisS:TS + cisS:TM + cisS:TM:TS, data=dm_sparse)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_sprse)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+sprs2 <- do.call("rbind", p_values_list)
+sprs2$sigTF <- sprs2$p_value < 1e-10
+sprs2$model <- rep("sprs2", nrow(sprs2))
+ggplot(sprs2) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+#### sprs3
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_sprse)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_sprse))
+  b[i] <- 1
+  y <- X_sprse %*% b + rnorm(nrow(X_sprse), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_sparse )
+  alt <- lmer(y ~ (1|PlantID) + cisS + cisM + cisM:TM + cisS:TS + cisM:TS + cisM:TM:TS, data=dm_sparse)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_sprse)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+sprs3 <- do.call("rbind", p_values_list)
+sprs3$sigTF <- sprs3$p_value < 1e-10
+sprs3$model <- rep("sprs3", nrow(sprs3))
+#ggplot(sprs3) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+#  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### sprs4
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_sprse)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_sprse))
+  b[i] <- 1
+  y <- X_sprse %*% b + rnorm(nrow(X_sprse), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_sparse )
+  alt <- lmer(y ~ (1|PlantID) + cisM + TM + cisM:TM + cisS:TS + cisM:TS + cisM:TM:TS, data=dm_sparse)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_sprse)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+sprs4 <- do.call("rbind", p_values_list)
+sprs4$sigTF <- sprs4$p_value < 1e-10
+sprs4$model <- rep("sprs4", nrow(sprs4))
+#ggplot(sprs4) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+#  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### sprs5
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_sprse)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_sprse))
+  b[i] <- 1
+  y <- X_sprse %*% b + rnorm(nrow(X_sprse), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_sparse )
+  alt <- lmer(y ~ (1|PlantID) + cisS + TS + cisM:TM + cisS:TS + cisS:TM + cisS:TM:TS, data=dm_sparse)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_sprse)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+sprs5 <- do.call("rbind", p_values_list)
+sprs5$sigTF <- sprs5$p_value < 1e-10
+sprs5$model <- rep("sprs5", nrow(sprs5))
+#ggplot(sprs5) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+#  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### sprs6
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_sprse)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_sprse))
+  b[i] <- 1
+  y <- X_sprse %*% b + rnorm(nrow(X_sprse), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_sparse )
+  alt <- lmer(y ~ (1|PlantID) + cisS + TS + cisS:TS + cisS:TM + cisS:TM:TS, data=dm_sparse)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_sprse)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+sprs6 <- do.call("rbind", p_values_list)
+sprs6$sigTF <- sprs6$p_value < 1e-10
+sprs6$model <- rep("sprs6", nrow(sprs6))
+ggplot(sprs6) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### sprs7
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_sprse)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_sprse))
+  b[i] <- 1
+  y <- X_sprse %*% b + rnorm(nrow(X_sprse), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_sparse )
+  alt <- lmer(y ~ (1|PlantID) + cisM + TM + cisM:TM + cisM:TS + cisM:TM:TS, data=dm_sparse)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_sprse)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+sprs7 <- do.call("rbind", p_values_list)
+sprs7$sigTF <- sprs7$p_value < 1e-10
+sprs7$model <- rep("sprs7", nrow(sprs7))
+ggplot(sprs7) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+#### sprs8
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_sprse)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_sprse))
+  b[i] <- 1
+  y <- X_sprse %*% b + rnorm(nrow(X_sprse), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_sparse )
+  alt <- lmer(y ~ (1|PlantID) + cisS + cisM + cisM:TM + cisS:TS + cisS:TM + cisM:TS, data=dm_sparse)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_sprse)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+sprs8 <- do.call("rbind", p_values_list)
+sprs8$sigTF <- sprs8$p_value < 1e-10
+sprs8$model <- rep("sprs8", nrow(sprs8))
+ggplot(sprs8) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### fiddle
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_sprse)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_sprse))
+  b[i] <- 1
+  y <- X_sprse %*% b + rnorm(nrow(X_sprse), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_sparse )
+  alt <- lmer(y ~ (1|PlantID) +  cisS + cisM + cisM:TM + cisS:TS, data=dm_sparse)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_sprse)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+s.fiddle <- do.call("rbind", p_values_list)
+s.fiddle$sigTF <- s.fiddle$p_value < 1e-10
+s.fiddle$model <- rep("s.fiddle", nrow(s.fiddle))
+ggplot(s.fiddle) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Sparse Results
+
+```{r, fig.height=8}
+sparse_modComparisons <- rbind(sprs_cisM, sprs_cisS, sprs_interact, sprs1, sprs2, sprs3, sprs4, sprs5, sprs6, sprs7, sprs8)
+sparse_modComparisons %>% ggplot(aes(x=variable, y=model, fill=sigTF)) + geom_tile(alpha=0.7, colour="grey10") + 
+  theme(axis.text.x = element_text(angle=45, hjust=1))
+```
+
+The $trans_{MS}$ effect is picked up only when dropping the parameters: $trans_M$, $trans_S$, and one pair of cis-oriented genomic interaction variables (either $cis_M_trans_{MS}$ and $cis_M_trans_S$ OR $cis_Strans_{MS}$ and $cis_Strans_M$).
+Dropping one of those pairs results in the eigth results (`sprs_8`), which only picks up the $trans$ effects.
+
+```{r}
+rm(b,alt,full,i,p, p_values_list, p_value,y)
+```
+
+
+# Extended Design
+
+#### Interaction
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_expd)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_expd))
+  b[i] <- 1
+  y <- X_expd %*% b + rnorm(nrow(X_expd), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_expd )
+  alt <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + cisM:TM + cisS:TS, data=dm_expd)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_expd)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+expd_interact <- do.call("rbind", p_values_list)
+expd_interact$sigTF <- expd_interact$p_value < 1e-10
+expd_interact$model <- rep("interaction", nrow(expd_interact))
+```
+
+#### cis S
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_expd)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_expd))
+  b[i] <- 1
+  y <- X_expd %*% b + rnorm(nrow(X_expd), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_expd )
+  alt <- lmer(y ~ (1|PlantID)  + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisM:TM:TS, data=dm_expd)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_expd)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+expd_cisS <- do.call("rbind", p_values_list)
+expd_cisS$sigTF <- expd_cisS$p_value < 1e-10
+expd_cisS$model <- rep("cisS", nrow(expd_cisS))
+#ggplot(expd_cisS) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) + 
+#  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### cis M
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_expd)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_expd))
+  b[i] <- 1
+  y <- X_expd %*% b + rnorm(nrow(X_expd), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_expd )
+  alt <- lmer(y ~ (1|PlantID)  + cisS + TM + TS + TM:TS + cisS:TM + cisS:TS + cisS:TM:TS, data=dm_expd)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_expd)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+expd_cisM <- do.call("rbind", p_values_list)
+expd_cisM$sigTF <- expd_cisM$p_value < 1e-10
+expd_cisM$model <- rep("cisM", nrow(expd_cisM))
+#ggplot(expd_cisM) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+#theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### expd1
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_expd)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_expd))
+  b[i] <- 1
+  y <- X_expd %*% b + rnorm(nrow(X_expd), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_expd )
+  alt <- lmer(y ~ (1|PlantID) + cisS + cisM + TS + TM, data=dm_expd)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_expd)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+expd1 <- do.call("rbind", p_values_list)
+expd1$sigTF <- expd1$p_value < 1e-10
+expd1$model <- rep("expd1", nrow(expd1))
+#ggplot(expd1) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+#  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### expd2
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_expd)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_expd))
+  b[i] <- 1
+  y <- X_expd %*% b + rnorm(nrow(X_expd), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_expd )
+  alt <- lmer(y ~ (1|PlantID) + cisM + TM + TS + cisM:TM + cisS:TS + cisM:TS + cisM:TM:TS, data=dm_expd)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_expd)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+expd2 <- do.call("rbind", p_values_list)
+expd2$sigTF <- expd2$p_value < 1e-10
+expd2$model <- rep("expd2", nrow(expd2))
+#ggplot(expd2) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+#  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+#### expd3
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_expd)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_expd))
+  b[i] <- 1
+  y <- X_expd %*% b + rnorm(nrow(X_expd), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_expd )
+  alt <- lmer(y ~ (1|PlantID) + cisS + TM + TS + cisM:TM + cisS:TS + cisS:TM + cisS:TM:TS, data=dm_expd)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_expd)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+expd3 <- do.call("rbind", p_values_list)
+expd3$sigTF <- expd3$p_value < 1e-10
+expd3$model <- rep("expd3", nrow(expd3))
+#ggplot(expd3) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+#  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### expd4
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_expd)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_expd))
+  b[i] <- 1
+  y <- X_expd %*% b + rnorm(nrow(X_expd), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_expd )
+  alt <- lmer(y ~ (1|PlantID) + cisS + TM + TS + cisS:TS + cisS:TM + cisS:TM:TS, data=dm_expd)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_expd)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+expd4 <- do.call("rbind", p_values_list)
+expd4$sigTF <- expd4$p_value < 1e-10
+expd4$model <- rep("expd4", nrow(expd4))
+#ggplot(expd4) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+#  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### expd5
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_expd)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_expd))
+  b[i] <- 1
+  y <- X_expd %*% b + rnorm(nrow(X_expd), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_expd )
+  alt <- lmer(y ~ (1|PlantID) + cisM + TM + TS + cisM:TS + cisM:TM + cisM:TM:TS, data=dm_expd)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_expd)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+expd5 <- do.call("rbind", p_values_list)
+expd5$sigTF <- expd5$p_value < 1e-10
+expd5$model <- rep("expd5", nrow(expd5))
+#ggplot(expd5) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+#  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### expd6
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_expd)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_expd))
+  b[i] <- 1
+  y <- X_expd %*% b + rnorm(nrow(X_expd), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_expd )
+  alt <- lmer(y ~ (1|PlantID) + cisM + cisS + cisM:TM + cisS:TS + cisS:TM, data=dm_expd)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_expd)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+expd6 <- do.call("rbind", p_values_list)
+expd6$sigTF <- expd6$p_value < 1e-10
+expd6$model <- rep("expd6", nrow(expd6))
+#ggplot(expd6) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+#  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Results
+
+Visualize models and p-values
+
+```{r fig.height=8}
+expd_modComparisons <- rbind(expd_cisM, expd_cisS, expd_interact, expd1, expd2, expd3, expd4, expd5, expd6)
+expd_modComparisons %>% ggplot(aes(x=variable, y=model, fill=sigTF)) + geom_tile(alpha=0.7, colour="grey10") + 
+  theme(axis.text.x = element_text(angle=45, hjust=1))
 ```
 
 ```{r}
-ggplot(p_cis_s) + geom_boxplot(aes(x=variable, y=p_values)) + theme(axis.text.x = element_text(angle=45, hjust = 1))
+rm(p_value, y, b, i, alt, full)
 ```
 
-The interpretation of this graph is that, using these models, I cannot distinguish between just the single south american cis allele effect and the cis-trans interactions between the SA allele and other backgrounds.
-Also that I cannot distinguish between some B73 and SA allele cis-trans interactions.
+# Full Design
 
-Above was a proof of concept. Now try it by comparing between models with the values that I really want to discover: 
+#### Interaction
 
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_full)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_full))
+  b[i] <- 1
+  y <- X_full %*% b + rnorm(nrow(X_full), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_full )
+  alt <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + cisM:TM + cisS:TS, data=dm_full)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_full)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+full_interact <- do.call("rbind", p_values_list)
+full_interact$sigTF <- full_interact$p_value < 1e-10
+full_interact$model <- rep("interaction", nrow(full_interact))
+ggplot(full_interact) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### cis S
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_full)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_full))
+  b[i] <- 1
+  y <- X_full %*% b + rnorm(nrow(X_full), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_full )
+  alt <- lmer(y ~ (1|PlantID)  + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisM:TM:TS, data=dm_full)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_full)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+full_cisS <- do.call("rbind", p_values_list)
+full_cisS$sigTF <- full_cisS$p_value < 1e-10
+full_cisS$model <- rep("cisS", nrow(full_cisS))
+ggplot(full_cisS) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### cis M
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_full)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_full))
+  b[i] <- 1
+  y <- X_full %*% b + rnorm(nrow(X_full), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_full )
+  alt <- lmer(y ~ (1|PlantID)  + cisS + TM + TS + TM:TS + cisS:TM + cisS:TS + cisS:TM:TS, data=dm_full)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_full)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+full_cisM <- do.call("rbind", p_values_list)
+full_cisM$sigTF <- full_cisM$p_value < 1e-10
+full_cisM$model <- rep("cisM", nrow(full_cisM))
+ggplot(full_cisM) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### full1
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_full)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_full))
+  b[i] <- 1
+  y <- X_full %*% b + rnorm(nrow(X_full), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_full )
+  alt <- lmer(y ~ (1|PlantID) + cisS + cisM + TS + TM, data=dm_full)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_full)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+full1 <- do.call("rbind", p_values_list)
+full1$sigTF <- full1$p_value < 1e-10
+full1$model <- rep("full1", nrow(full1))
+ggplot(full1) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### full2
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_full)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_full))
+  b[i] <- 1
+  y <- X_full %*% b + rnorm(nrow(X_full), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_full )
+  alt <- lmer(y ~ (1|PlantID) + cisM + TM + TS + cisM:TM + cisS:TS + cisM:TS + cisM:TM:TS, data=dm_full)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_full)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+full2 <- do.call("rbind", p_values_list)
+full2$sigTF <- full2$p_value < 1e-10
+full2$model <- rep("full2", nrow(full2))
+ggplot(full2) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+#### full3
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_full)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_full))
+  b[i] <- 1
+  y <- X_full %*% b + rnorm(nrow(X_full), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_full )
+  alt <- lmer(y ~ (1|PlantID) + cisS + TM + TS + cisM:TM + cisS:TS + cisS:TM + cisS:TM:TS, data=dm_full)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_full)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+full3 <- do.call("rbind", p_values_list)
+full3$sigTF <- full3$p_value < 1e-10
+full3$model <- rep("full3", nrow(full3))
+ggplot(full3) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### full4
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_full)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_full))
+  b[i] <- 1
+  y <- X_full %*% b + rnorm(nrow(X_full), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_full )
+  alt <- lmer(y ~ (1|PlantID) + cisS + TM + TS + cisS:TS + cisS:TM + cisS:TM:TS, data=dm_full)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_full)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+full4 <- do.call("rbind", p_values_list)
+full4$sigTF <- full4$p_value < 1e-10
+full4$model <- rep("full4", nrow(full4))
+ggplot(full4) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### full5
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_full)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_full))
+  b[i] <- 1
+  y <- X_full %*% b + rnorm(nrow(X_full), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_full )
+  alt <- lmer(y ~ (1|PlantID) + cisM + TM + TS + cisM:TS + cisM:TM + cisM:TM:TS, data=dm_full)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_full)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+full5 <- do.call("rbind", p_values_list)
+full5$sigTF <- full5$p_value < 1e-10
+full5$model <- rep("full5", nrow(full5))
+ggplot(full5) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### full6
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_full)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_full))
+  b[i] <- 1
+  y <- X_full %*% b + rnorm(nrow(X_full), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_full )
+  alt <- lmer(y ~ (1|PlantID) + cisM + cisS + cisM:TM + cisS:TS + cisS:TM, data=dm_full)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_full)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+full6 <- do.call("rbind", p_values_list)
+full6$sigTF <- full6$p_value < 1e-10
+full6$model <- rep("full6", nrow(full6))
+ggplot(full6) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### full7
+
+This is the recirocal to full2
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_full)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_full))
+  b[i] <- 1
+  y <- X_full %*% b + rnorm(nrow(X_full), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_full )
+  alt <- lmer(y ~ (1|PlantID) + cisM + TM + TS + cisM:TM + cisS:TS + cisM:TS + cisM:TM:TS, data=dm_full)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_full)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+full7 <- do.call("rbind", p_values_list)
+full7$sigTF <- full7$p_value < 1e-10
+full7$model <- rep("full7", nrow(full7))
+ggplot(full7) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### full8
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_full)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_full))
+  b[i] <- 1
+  y <- X_full %*% b + rnorm(nrow(X_full), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_full )
+  alt <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TM:TS + cisM:TM + cisS:TM, data=dm_full)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_full)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+full8 <- do.call("rbind", p_values_list)
+full8$sigTF <- full8$p_value < 1e-10
+full8$model <- rep("full8", nrow(full8))
+ggplot(full8) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+#### full9
+
+Same as sparse2
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_full)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_full))
+  b[i] <- 1
+  y <- X_full %*% b + rnorm(nrow(X_full), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_full )
+  alt <- lmer(y ~ (1|PlantID) + cisS + cisM + cisM:TM + cisS:TS + cisS:TM + cisS:TM:TS, data=dm_full)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_full)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+full9 <- do.call("rbind", p_values_list)
+full9$sigTF <- full9$p_value < 1e-10
+full9$model <- rep("full9", nrow(full9))
+ggplot(full9) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### full10
+
+Same as Sparse 3
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_full)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_full))
+  b[i] <- 1
+  y <- X_full %*% b + rnorm(nrow(X_full), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_full )
+  alt <- lmer(y ~ (1|PlantID) + cisS + cisM + cisM:TM + cisS:TS + cisM:TS + cisM:TM:TS, data=dm_full)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_full)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+full10 <- do.call("rbind", p_values_list)
+full10$sigTF <- full10$p_value < 1e-10
+full10$model <- rep("full10", nrow(full10))
+ggplot(full10) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### full11
+
+same as sparse 8
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_full)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_full))
+  b[i] <- 1
+  y <- X_full %*% b + rnorm(nrow(X_full), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_full )
+  alt <- lmer(y ~ (1|PlantID) + cisS + cisM + cisM:TM + cisS:TS + cisS:TM + cisM:TS, data=dm_full)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_full)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+full11 <- do.call("rbind", p_values_list)
+full11$sigTF <- full11$p_value < 1e-10
+full11$model <- rep("full11", nrow(full11))
+ggplot(full11) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### Fiddle
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_full)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_full))
+  b[i] <- 1
+  y <- X_full %*% b + rnorm(nrow(X_full), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_full )
+  alt <- lmer(y ~ (1|PlantID) + cisS + TM + TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM, data=dm_full)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_full)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+f.fiddle <- do.call("rbind", p_values_list)
+f.fiddle$sigTF <- f.fiddle$p_value < 1e-10
+f.fiddle$model <- rep("f.fiddle", nrow(f.fiddle))
+ggplot(f.fiddle) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+ cisM + TM + TS + cisM:TM + cisS:TS + cisM:TS + cisM:TM:TS
+
+## Results
+
+Visualize models and p-values
+
+```{r fig.height=8}
+full_modComparisons <- rbind(full_cisM, full_cisS, full_interact, full1, full2, full3, full4, full5, full6, full7, full8, full9, full10, full11)
+full_modComparisons %>% ggplot(aes(x=variable, y=model, fill=sigTF)) + geom_tile(alpha=0.7, colour="grey10") + 
+  theme(axis.text.x = element_text(angle=45, hjust=1))
+```
+
+# Strong Cis Effect
+
+Modeling the circumstance where there is a strong, permanent $cis$ effect
+
+Comparing the three design matrices
 
 ```{r}
-fit2 <- lmer(tpm ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + trans_ms +
-            cis_m_trans_m + cis_s_trans_m +
-            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
-            cis_s_trans_ms, data = dm)
-summary(fit2)
-fit3 <- lmer(tpm ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + 
-            cis_m_trans_m + cis_s_trans_s, data = dm)
+cbPalette <- c("#56B4E9", "#D55E00")
 ```
+
+## CisM effect
+
+#### cis M Sparse
 
 ```{r message=FALSE, warning=FALSE}
 p_values_list <- list()
 
-for ( i in 1:ncol(X)) {
-
-  b <- rep(0,ncol(X))
+for (i in 1:ncol(X_sprse)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_sprse))
   b[i] <- 1
-  
-  p_values <- c()
-  for (j in 1:4) {
-    y <- X %*% b + rnorm(nrow(X), mean=0, sd=1e-10) #simulate data with current b-vector
-    tryCatch({ #fit 1, full model
-      fit1 <- lmer(y ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + trans_ms +
-            cis_m_trans_m + cis_s_trans_m +
-            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
-            cis_s_trans_ms, data = dm)
-    }, error=function(c) NA)
-    tryCatch({ #fit 2, reduced model
-       fit2 <- lmer(y ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s +
-                      trans_ms +
-            cis_m_trans_m + cis_s_trans_s, data = dm)
-    }, error=function(e) NA)
-    tryCatch({ #see if the models are different
-      p <- anova(fit1, fit2)$`Pr(>Chisq)`[2]
-    }, error=function(e) p <- NA)
-    p_values <- c(p_values, p)
-  }
-  p_values <- data.frame(variable=rep(colnames(X)[i],length(p_values)), p_values=p_values) #catch the p-values in a energy-inefficient structure that enables for easy graphing later.
-  p_values_list[[i]] <- p_values
+  b[2] <- 1
+  y <- X_sprse %*% b + rnorm(nrow(X_sprse), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_sparse )
+  alt <- lmer(y ~ (1|PlantID)  + cisS + TM + TS + TM:TS + cisS:TM + cisS:TS + cisS:TM:TS, data=dm_sparse)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_sprse)[i], p_value=p)
+  p_values_list[[i]] <- p_value
 }
+cisM_sprs_cisM <- do.call("rbind", p_values_list)
+cisM_sprs_cisM$sigTF <- cisM_sprs_cisM$p_value < 1e-10
+cisM_sprs_cisM$model <- rep("cisM_sprs_cisM", nrow(cisM_sprs_cisM))
+#ggplot(cisM_sprs_cisM) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+#  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + scale_color_manual(values=cbPalette[as.numeric(cisM_sprs_cisM$sigTF)])
+```
+The model that tests for CisM will effect everything.
 
-p_trans <- do.call("rbind", p_values_list)
+#### CisM Extended
 
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_expd)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_expd))
+  b[i] <- 1
+  b[2] <- 1
+  y <- X_expd %*% b + rnorm(nrow(X_expd), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_expd )
+  alt <- lmer(y ~ (1|PlantID)  + cisS + TM + TS + TM:TS + cisS:TM + cisS:TS + cisS:TM:TS, data=dm_expd)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_expd)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+cisM_expd_cisM <- do.call("rbind", p_values_list)
+cisM_expd_cisM$sigTF <- cisM_expd_cisM$p_value < 1e-10
+cisM_expd_cisM$model <- rep("cisM_expd_cisM", nrow(cisM_expd_cisM))
+#ggplot(cisM_expd_cisM) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+#  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+#  scale_color_manual(values = cbPalette[as.numeric(cisM_expd_cisM$sigTF)])
 ```
 
+#### cis M Full
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_full)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_full))
+  b[i] <- 1
+  b[2] <- 1
+  y <- X_full %*% b + rnorm(nrow(X_full), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_full )
+  alt <- lmer(y ~ (1|PlantID)  + cisS + TM + TS + TM:TS + cisS:TM + cisS:TS + cisS:TM:TS, data=dm_full)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_full)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+cisM_full_cisM <- do.call("rbind", p_values_list)
+cisM_full_cisM$sigTF <- cisM_full_cisM$p_value < 1e-10
+cisM_full_cisM$model <- rep("cisM_full_cisM", nrow(cisM_full_cisM))
+#ggplot(cisM_full_cisM) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+#  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+#  scale_color_manual(values = cbPalette[as.numeric(cisM_expd_cisM$sigTF)])
+```
+
+## Interactions with CisM
+
+#### Sparse
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_sprse)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_sprse))
+  b[i] <- 1
+  b[2] <- 1
+  y <- X_sprse %*% b + rnorm(nrow(X_sprse), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_sparse )
+  alt <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + cisM:TM + cisS:TS, data=dm_sparse)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_sprse)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+cisM_sprs_interact <- do.call("rbind", p_values_list)
+cisM_sprs_interact$sigTF <- cisM_sprs_interact$p_value < 1e-10
+cisM_sprs_interact$model <- rep("interact_cisM_sprs", nrow(cisM_sprs_interact))
+#ggplot(cisM_sprs_interact) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+#  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### Extended
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_expd)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_expd))
+  b[i] <- 1
+  b[2] <- 1
+  y <- X_expd %*% b + rnorm(nrow(X_expd), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_expd )
+  alt <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + cisM:TM + cisS:TS, data=dm_expd)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_expd)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+cisM_expd_interact <- do.call("rbind", p_values_list)
+cisM_expd_interact$sigTF <- cisM_expd_interact$p_value < 1e-10
+cisM_expd_interact$model <- rep("interact_cisM_expd", nrow(cisM_expd_interact))
+#ggplot(cisM_expd_interact) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+#  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+#### Full
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_full)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_full))
+  b[i] <- 1
+  b[2] <- 1
+  y <- X_full %*% b + rnorm(nrow(X_full), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_full )
+  alt <- lmer(y ~ (1|PlantID)  + cisS + cisM + TM + TS + cisM:TM + cisS:TS, data=dm_full)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_full)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+cisM_full_interact <- do.call("rbind", p_values_list)
+cisM_full_interact$sigTF <- cisM_full_interact$p_value < 1e-10
+cisM_full_interact$model <- rep("interact_cisM_full", nrow(cisM_full_interact))
+#ggplot(cisM_full_interact) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+#  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## Extended model 3
+
+###### without cisM
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_expd)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_expd))
+  b[i] <- 1
+  y <- X_expd %*% b + rnorm(nrow(X_expd), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_expd )
+  alt <- lmer(y ~ (1|PlantID) + cisS + TM + TS + cisM:TM + cisS:TS + cisS:TM + cisS:TM:TS, data=dm_expd)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_expd)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+expd3 <- do.call("rbind", p_values_list)
+expd3$sigTF <- expd3$p_value < 1e-10
+expd3$model <- rep("expd3", nrow(expd3))
+#ggplot(expd3) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+#  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+###### with a CisM
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for (i in 1:ncol(X_expd)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_expd))
+  b[i] <- 1
+  b[2] <- 1
+  y <- X_expd %*% b + rnorm(nrow(X_expd), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisM + TM + TS + TM:TS + cisM:TM + cisM:TS + cisS:TS + cisS:TM + cisM:TM:TS + cisS:TM:TS, data=dm_expd )
+  alt <- lmer(y ~ (1|PlantID) + cisS + TM + TS + cisM:TM + cisS:TS + cisS:TM + cisS:TM:TS, data=dm_expd)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_expd)[i], p_value=p)
+  p_values_list[[i]] <- p_value
+}
+cisM_expd3 <- do.call("rbind", p_values_list)
+cisM_expd3$sigTF <- cisM_expd3$p_value < 1e-10
+cisM_expd3$model <- rep("expd3_cisM", nrow(cisM_expd3))
+ggplot(cisM_expd3) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+## CisM Effect Results
+
+
+```{r fig.height=8}
+cisM_modComparisons <- rbind(cisM_sprs_cisM, cisM_expd_cisM, cisM_full_cisM, cisM_sprs_interact, cisM_expd_interact, cisM_full_interact, expd3, cisM_expd3)
+cisM_modComparisons %>% ggplot(aes(x=variable, y=model, fill=sigTF)) + geom_tile(alpha=0.7, colour="grey10") + 
+  theme(axis.text.x = element_text(angle=45, hjust=1))
+```
+
+# Re-leveling
 
 ```{r}
-ggplot(p_trans) + geom_boxplot(aes(x=as.factor(variable), y=p_values)) + theme(axis.text.x = element_text(angle=45, hjust = 1))
+dMex <- sparse
+dMex$cis <- relevel(dMex$cis, 2) # make Mex the intercept
+dm_sparse_mex <- model.matrix(~cis*TB*TS, dMex)
+dm_sparse_mex <- as.data.frame(rbind(dm_sparse_mex, dm_sparse_mex, dm_sparse_mex))
+dm_sparse_mex$allele <- rep(sparse$cis, 3)
+dm_sparse_mex$cross <- as.factor(rep(sparse$T1,3))
+dm_sparse_mex$PlantID <- rep(1:9, each=2)
+colnames(dm_sparse_mex)
+X_mex_sp <- as.matrix(dm_sparse_mex[,-c(13:15)])
 ```
 
-Random testing
+
+#### cis S
 
 ```{r message=FALSE, warning=FALSE}
 p_values_list <- list()
 
-for ( i in 1:ncol(X)) {
-
-  b <- rep(0,ncol(X))
+for (i in 1:ncol(X_mex_sp)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_mex_sp))
   b[i] <- 1
-  
-  p_values <- c()
-  for (j in 1:20) {
-    y <- X %*% b + rnorm(nrow(X), mean=0, sd=1e-10) #simulate data with current b-vector
-    tryCatch({ #fit 1, full model
-      fit1 <- lmer(y ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + trans_ms +
-            cis_m_trans_m + cis_s_trans_m +
-            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
-            cis_s_trans_ms, data = dm)
-    }, error=function(c) NA)
-    tryCatch({ #fit 2, reduced model
-       fit2 <- lmer(y ~ (1|PlantID) + trans_m + trans_s + trans_ms +
-            cis_m_trans_m + cis_s_trans_m +
-            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
-            cis_s_trans_ms, data = dm)
-    }, error=function(e) NA)
-    tryCatch({ #see if the models are different
-      p <- anova(fit1, fit2)$`Pr(>Chisq)`[2]
-    }, error=function(e) p <- NA)
-    p_values <- c(p_values, p)
-  }
-  p_values <- data.frame(variable=rep(colnames(X)[i],length(p_values)), p_values=p_values) #catch the p-values in a energy-inefficient structure that enables for easy graphing later.
-  p_values_list[[i]] <- p_values
+  y <- X_mex_sp %*% b + rnorm(nrow(X_mex_sp), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisB + TB + TS + TB:TS + cisB:TB + cisB:TS + cisS:TS + cisS:TB + cisB:TB:TS + cisS:TB:TS, data=dm_sparse_mex )
+  alt <- lmer(y ~ (1|PlantID)  + cisB + TB + TS + TB:TS + cisB:TB + cisB:TS + cisB:TB:TS, data=dm_sparse_mex)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_mex_sp)[i], p_value=p)
+  p_values_list[[i]] <- p_value
 }
-
-p_trans <- do.call("rbind", p_values_list)
-
-
-ggplot(p_trans) + geom_boxplot(aes(x=as.factor(variable), y=p_values)) + theme(axis.text.x = element_text(angle=45, hjust = 1))
+mex_sprs_cisS <- do.call("rbind", p_values_list)
+mex_sprs_cisS$sigTF <- mex_sprs_cisS$p_value < 1e-10
+mex_sprs_cisS$model <- rep("cisS", nrow(mex_sprs_cisS))
+ggplot(mex_sprs_cisS) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
+#### cis B
 
 ```{r message=FALSE, warning=FALSE}
 p_values_list <- list()
 
-for ( i in 1:ncol(X)) {
-
-  b <- rep(0,ncol(X))
+for (i in 1:ncol(X_mex_sp)) {
+  # simulating the effect for that model component
+  b <- rep(0, ncol(X_mex_sp))
   b[i] <- 1
-  
-  p_values <- c()
-  for (j in 1:20) {
-    y <- X %*% b + rnorm(nrow(X), mean=0, sd=1e-10) #simulate data with current b-vector
-    tryCatch({ #fit 1, full model
-      fit1 <- lmer(y ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + trans_ms +
-            cis_m_trans_m + cis_s_trans_m +
-            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
-            cis_s_trans_ms, data = dm)
-    }, error=function(c) NA)
-    tryCatch({ #fit 2, reduced model
-       fit2 <- lmer(y ~ (1|PlantID) + trans_m + trans_s, data = dm)
-    }, error=function(e) NA)
-    tryCatch({ #see if the models are different
-      p <- anova(fit1, fit2)$`Pr(>Chisq)`[2]
-    }, error=function(e) p <- NA)
-    p_values <- c(p_values, p)
-  }
-  p_values <- data.frame(variable=rep(colnames(X)[i],length(p_values)), p_values=p_values) #catch the p-values in a energy-inefficient structure that enables for easy graphing later.
-  p_values_list[[i]] <- p_values
+  y <- X_mex_sp %*% b + rnorm(nrow(X_mex_sp), mean=0, sd=1e-10)
+  full <- lmer(y ~ (1|PlantID) + cisS + cisB + TB + TS + TB:TS + cisB:TB + cisB:TS + cisS:TS + cisS:TB + cisB:TB:TS + cisS:TB:TS, data=dm_sparse_mex )
+  alt <- lmer(y ~ (1|PlantID)  + cisS + TB + TS + TB:TS + cisS:TB + cisS:TS + cisS:TB:TS, data=dm_sparse_mex)
+  p <- anova(full, alt)$`Pr(>Chisq)`[2]
+  p_value <- data.frame(variable=colnames(X_mex_sp)[i], p_value=p)
+  p_values_list[[i]] <- p_value
 }
-
-p_trans <- do.call("rbind", p_values_list)
-
+mex_sprs_cisS <- do.call("rbind", p_values_list)
+mex_sprs_cisS$sigTF <- mex_sprs_cisS$p_value < 1e-10
+mex_sprs_cisS$model <- rep("cisS", nrow(mex_sprs_cisS))
+ggplot(mex_sprs_cisS) + geom_point(aes(x=as.factor(variable), y=p_value, color=sigTF)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
+
+# Full Diallel
+
+A full diallel is when the parents are crossed to make hybrids in all possible combinations.
+
+```{r}
+diallel <- data.frame(allele1 = c(rep(paste(rep("M", 4), seq(1:4), sep=""),each=8), rep(paste(rep("S",4), seq(1:4), sep=""), each=8)),
+                      allele2 = rep(c(paste(rep("M", 4), seq(1:4), sep=""),paste(rep("S",4), seq(1:4), sep=""))))
+```
+
+sparse <- data.frame(cis=rep(c("B","S","M"),2))
+sparse$T1 <- rep(c("BS","BM","MS"), each=2)
+
+sparse$TM <- c(0,1)[grepl('M',sparse$T1)+1]
+sparse$TS <- c(0,1)[grepl('S', sparse$T1)+1]
+sparse$TB <- c(0,1)[grepl('B', sparse$T1)+1]
+
+dm_sparse <- as.data.frame(model.matrix(~cis*TM*TS,sparse))
+dm_sparse <- as.data.frame(rbind(dm_sparse, dm_sparse, dm_sparse))
+dm_sparse$allele <- rep(sparse$cis, 3)
+dm_sparse$cross <- as.factor(rep(sparse$T1,3))
+dm_sparse$PlantID <- rep(1:9, each=2)
+colnames(dm_sparse)
