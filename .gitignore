@@ -11,9 +11,9 @@ design/
 .DS_Store
 
 # ignore image files and rds
-.rds
-.png
-.pdf
+*.rds
+*.png
+*.pdf
 
 # Example code in package build process
 *-Ex.R
