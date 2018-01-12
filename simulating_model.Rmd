@@ -1,0 +1,318 @@
+---
+title: "Model for allele expression"
+author: "Caryn Johansen"
+date: "10/10/2017"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+# Simulate TPM Data
+
+
+reads
+
+```{r}
+kal <- read.table("LemmonAnalysis/data/fullTranscript/SRR1586618/abundance.tsv", header=T, sep = "\t")
+
+```
+
+```{r}
+hist(subset(log10(kal$tpm + 0.5), log10(kal$tpm + 0.5) > -.2), breaks=100)
+mean(subset(log10(kal$tpm + 0.5),log10(kal$tpm + 0.5) > -0.3), na.rm = T)
+sd(subset(log10(kal$tpm + 0.5),log10(kal$tpm + 0.5) > -0.3 ), na.rm = T)
+```
+
+Simulating data
+
+```{r}
+#y <- rnbinom(1e4, size=1, prob=0.02)
+y <- rnorm(1e4, mean = 0.679, sd = 0.8)
+y <- subset(y, y>-0.3)
+hist(y, breaks = 100)
+```
+
+
+# Design Matrix
+
+```{r}
+dm <- read.table("designMatrix.csv", sep=",", header=T)
+#dm$PlantID <- as.factor(dm$PlantID)
+table(dm$Allele)
+table(dm$Cross)
+```
+
+```{r}
+library(lme4)
+```
+
+Randomly get gene expression from the simulated data for each plant allele
+
+```{r}
+allele_tpm_log <- sample(y, size=nrow(dm))
+allele_tpm_log
+allele_tpm <- 10**(allele_tpm_log)
+allele_tpm
+```
+
+```{r}
+dm$tpm <- allele_tpm
+```
+
+# The model
+
+Model without plant ID as a random effect
+```{r}
+mm = model.matrix(tpm ~ 1 + cis_m + cis_s + trans_ms + trans_mb + trans_sb + trans_m + trans_s +
+            cis_m_trans_b + cis_s_trans_b + cis_m_trans_m + cis_s_trans_m +
+            cis_m_trans_s + cis_s_trans_s + cis_m_trans_mb + cis_m_trans_ms +
+            cis_s_trans_sb + cis_s_trans_ms, data = dm)
+linear_combos = caret::findLinearCombos(mm)
+linear_combos
+
+mm_fit1 <- lm(tpm ~ 1 + cis_m + cis_s + trans_ms + trans_mb + trans_sb + trans_m + trans_s +
+            cis_m_trans_b + cis_s_trans_b + cis_m_trans_m + cis_s_trans_m +
+            cis_m_trans_s + cis_s_trans_s + cis_m_trans_mb + cis_m_trans_ms +
+            cis_s_trans_sb + cis_s_trans_ms, data = dm)
+summary(mm_fit1)
+```
+
+Including PlantID as a random effect
+
+```{r}
+dm$PlantID <- as.factor(dm$PlantID)
+fit2 <- lmer(tpm ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + trans_ms +
+            cis_m_trans_m + cis_s_trans_m +
+            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
+            cis_s_trans_ms, data = dm)
+summary(fit2)
+
+fit2_b <- lmer(tpm ~ (1|PlantID) +  trans_m + trans_s + trans_ms, data = dm)
+summary(fit2_b)
+
+fit3 <- lmer(tpm ~ (1|PlantID) + cis_m + cis_s + trans_m + trans_s + 
+            cis_m_trans_m + cis_s_trans_s, data = dm)
+summary(fit3)
+fit3_b <- lmer(tpm ~ (1|PlantID) + trans_m + trans_s, data = dm)
+summary(fit3_b)
+
+
+anova(fit2,fit3)
+anova(fit2_b, fit3_b) #the cis matters - and get cis from ASE
+
+# test the models by adding effects to the coefficients iteratively
+
+dm$PlantID <- as.factor(dm$PlantID)
+mm2 <- model.matrix(tpm ~ cis_m + cis_s + trans_m + trans_s + trans_ms +
+            cis_m_trans_m + cis_s_trans_m +
+            cis_m_trans_s + cis_s_trans_s + cis_m_trans_ms +
+            cis_s_trans_ms, data = dm)
+
+linear_combos2 = caret::findLinearCombos(mm2[,-1])
+linear_combos2
+
+```
+
+Use cross as the random effect
+
+```{r}
+dm$Cross2 <- as.factor(dm$Cross2)
+dm$PlantID <- as.factor(dm$PlantID)
+fit3 <- lmer(tpm ~ (1|Cross2) + (1|PlantID) + cis_m + cis_s + trans_m + trans_s + trans_ms + trans_mb + trans_sb + 
+            cis_s_trans_b + cis_m_trans_b + cis_m_trans_m + cis_s_trans_m +
+            cis_m_trans_s + cis_s_trans_s + cis_m_trans_mb + cis_m_trans_ms +
+            cis_s_trans_sb + cis_s_trans_ms, data = dm)
+summary(fit3)
+coef(fit3)
+
+dm$Cross2 <- as.integer(dm$Cross2)
+dm$PlantID <- as.integer(dm$PlantID)
+mm3 <- model.matrix(tpm ~ (1|Cross2) + cis_m + cis_s + trans_m + trans_s + trans_ms + trans_mb + trans_sb + 
+            cis_s_trans_b + cis_m_trans_b + cis_m_trans_m + cis_s_trans_m +
+            cis_m_trans_s + cis_s_trans_s + cis_m_trans_mb + cis_m_trans_ms +
+            cis_s_trans_sb + cis_s_trans_ms, data = dm)
+linear_combos3 = caret::findLinearCombos(mm3)
+linear_combos3
+mm4 <- model.matrix(tpm ~ (1|Cross2) + (1|PlantID) + cis_m + cis_s + trans_m + trans_s + trans_ms + trans_mb + trans_sb + 
+            cis_s_trans_b + cis_m_trans_b + cis_m_trans_m + cis_s_trans_m +
+            cis_m_trans_s + cis_s_trans_s + cis_m_trans_mb + cis_m_trans_ms +
+            cis_s_trans_sb + cis_s_trans_ms, data = dm)
+linear_combos4 = caret::findLinearCombos(mm4)
+linear_combos4
+```
+
+# Idealize design matrix
+
+```{r}
+dm2 <- read.table("designM_ideal.csv", header=T, se=",")
+image(Matrix(as.matrix(dm2[,-c(1:4)])))
+dim(dm2)
+```
+```{r}
+table(dm2$Allele)
+table(dm2$Cross)
+```
+
+random tpm data
+```{r}
+random_tpm_log <- sample(y, nrow(dm2))
+random_tpm <- 10**random_tpm_log
+dm2$tpm <- random_tpm
+```
+
+
+FUll Model
+
+```{r}
+dm2_full_fit1 <- lmer(tpm ~ (1|PlantID) + cis_s + cis_m + trans_m + trans_s +
+                       trans_ms + 
+                       cis_m_trans_m + cis_m_trans_s +
+                       cis_s_trans_m + cis_s_trans_s +
+                       cis_m_trans_ms +
+                       cis_s_trans_ms, data=dm2)
+summary(dm2_full_fit1)
+full_mm <- model.matrix(tpm ~ cis_s + cis_m + trans_m + trans_s +
+                       trans_ms + 
+                       cis_m_trans_m + cis_m_trans_s +
+                       cis_s_trans_m + cis_s_trans_s +
+                       cis_m_trans_ms +
+                       cis_s_trans_ms, data=dm2)
+lin_combos <- caret::findLinearCombos(full_mm)
+lin_combos
+colnames(full_mm)
+```
+
+## Simulating effect
+
+```{r}
+X <- as.matrix(dm2[,-c(1:4,29)])
+```
+
+
+### cis m
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for ( i in 1:ncol(X)) {
+
+  b <- rep(0,ncol(X))
+  b[i] <- 1
+  
+  p_values <- c()
+  for (j in 1:10) {
+    y <- X %*% b + rnorm(nrow(X), mean=0, sd=1e-10)
+    tryCatch({
+      fit1 <- lmer(y ~ (1|PlantID) + cis_s + cis_m + trans_m + trans_s +
+                       trans_ms + 
+                       cis_m_trans_m + cis_m_trans_s +
+                       cis_s_trans_m + cis_s_trans_s +
+                       cis_m_trans_ms +
+                       cis_s_trans_ms, data=dm2)
+    }, error=function(c) NA)
+    tryCatch({
+       fit2 <- lmer(y ~ (1|PlantID) + cis_s + trans_m + trans_s +
+                       trans_ms + 
+                       #cis_m_trans_m + cis_m_trans_s +
+                       cis_s_trans_m + cis_s_trans_s +
+                       #cis_m_trans_ms +
+                       cis_s_trans_ms, data=dm2)
+    }, error=function(e) NA)
+    tryCatch({
+      p <- anova(fit1, fit2)$`Pr(>Chisq)`[2]
+    }, error=function(e) p <- NA)
+    p_values <- c(p_values, p)
+  }
+  p_values <- data.frame(variable=rep(colnames(X)[i],length(p_values)), p_values=p_values)
+  p_values_list[[i]] <- p_values
+}
+
+p_cis_m <- do.call("rbind", p_values_list)
+ggplot(p_cis_m) + geom_boxplot(aes(x=as.factor(variable), y=p_values)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### cis s
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for ( i in 1:ncol(X)) {
+
+  b <- rep(0,ncol(X))
+  b[i] <- 1
+  
+  p_values <- c()
+  for (j in 1:10) {
+    y <- X %*% b + rnorm(nrow(X), mean=0, sd=1e-10)
+    tryCatch({
+      fit1 <- lmer(y ~ (1|PlantID) + cis_s + cis_m + trans_m + trans_s +
+                       trans_ms + 
+                       cis_m_trans_m + cis_m_trans_s +
+                       cis_s_trans_m + cis_s_trans_s +
+                       cis_m_trans_ms +
+                       cis_s_trans_ms, data=dm2)
+    }, error=function(c) NA)
+    tryCatch({
+       fit2 <- lmer(y ~ (1|PlantID) + cis_m + trans_m + trans_s +
+                       trans_ms + 
+                       cis_m_trans_m + cis_m_trans_s +
+                       #cis_s_trans_m + cis_s_trans_s +
+                       cis_m_trans_ms, data=dm2)
+    }, error=function(e) NA)
+    tryCatch({
+      p <- anova(fit1, fit2)$`Pr(>Chisq)`[2]
+    }, error=function(e) p <- NA)
+    p_values <- c(p_values, p)
+  }
+  p_values <- data.frame(variable=rep(colnames(X)[i],length(p_values)), p_values=p_values)
+  p_values_list[[i]] <- p_values
+}
+
+p_cis_s <- do.call("rbind", p_values_list)
+ggplot(p_cis_s) + geom_boxplot(aes(x=as.factor(variable), y=p_values)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+### trans ms
+
+remove interacting values
+
+```{r message=FALSE, warning=FALSE}
+p_values_list <- list()
+
+for ( i in 1:ncol(X)) {
+
+  b <- rep(0,ncol(X))
+  b[i] <- 1
+  
+  p_values <- c()
+  for (j in 1:10) {
+    y <- X %*% b + rnorm(nrow(X), mean=0, sd=1e-10)
+    tryCatch({
+      fit1 <- lmer(y ~ (1|PlantID) + cis_s + cis_m + trans_m + trans_s +
+                       trans_ms + 
+                       cis_m_trans_m + cis_m_trans_s +
+                       cis_s_trans_m + cis_s_trans_s +
+                       cis_m_trans_ms +
+                       cis_s_trans_ms, data=dm2)
+    }, error=function(c) NA)
+    tryCatch({
+       fit2 <- lmer(y ~ (1|PlantID) + cis_s + cis_m + trans_m + trans_s +
+                       cis_m_trans_m + #cis_m_trans_s +
+                       cis_s_trans_s, data=dm2)
+    }, error=function(e) NA)
+    tryCatch({
+      p <- anova(fit1, fit2)$`Pr(>Chisq)`[2]
+    }, error=function(e) p <- NA)
+    p_values <- c(p_values, p)
+  }
+  p_values <- data.frame(variable=rep(colnames(X)[i],length(p_values)), p_values=p_values)
+  p_values_list[[i]] <- p_values
+}
+
+p_trans <- do.call("rbind", p_values_list)
+ggplot(p_trans) + geom_boxplot(aes(x=as.factor(variable), y=p_values)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
