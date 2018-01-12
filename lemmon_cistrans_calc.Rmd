@@ -1,0 +1,39 @@
+---
+title: "Cis, Trans regulation"
+author: "Caryn Johansen"
+date: "10/9/2017"
+output: html_document
+---
+
+I have the crossing scheme P1 x P2 = F1
+
+$$
+\begin{eqnarray}
+cis = log_2(\frac{parent1 \space allele}{parent2 \space allele}) \\
+= log_2(parent1 \space allele) - log_2(parent2 \space allele )
+\end{eqnarray}
+$$
+
+$$
+\begin{eqnarray}
+cis + trans = log_2(\frac{parent1}{parent2}) \\
+= log_2(parent1) - log_2(parent2 )
+\end{eqnarray}
+$$
+
+And so, to estimate $trans$ effects...
+
+$$
+trans = log_2(\frac{parent1}{parent2}) - log_2(\frac{parent1 \space allele}{parent2 \space allele})
+$$
+
+How do you do this without parents??
+
+## Calculate cis and trans from current data
+
+```{r}
+load("LemmonAnalysis/limma_data.RData")
+```
+
+Get the mean of each gene tpm for each cultivar (B73, TIL01, B73_TIL01).
+
