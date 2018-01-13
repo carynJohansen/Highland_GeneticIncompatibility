@@ -2,6 +2,10 @@
 images/
 design/
 
+# ignore output and info files
+*.out
+*.info
+
 # History files
 .Rhistory
 .Rapp.history
