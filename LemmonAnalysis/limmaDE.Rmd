@@ -204,6 +204,10 @@ Save environment for loading later
 save(gene_count_long, gene_counts, gene_tpm_long, gene_tpm, meta_leaf, plot_gene_tpm, plot_gene_counts, file="limma_data.RData")
 ```
 
+```{r}
+load("limma_data.RData")
+```
+
 
 # Analysis
 
@@ -237,7 +241,7 @@ reduced_TIL01
 Null model for difference between cross and TIL01
 
 ```{r}
-reduced_B73 <- model.matrix(~1+B73, meta_leaf)
+reduced_B73 <- model.matrix(~ 1 + B73, meta_leaf)
 reduced_B73
 ```
 
@@ -290,9 +294,9 @@ hist(tpm_fit_B73$adj.P.Val, breaks = 100)
 
 
 ```{r}
-plot_gene(tpm_B73_top[1,]$gene)
-plot_gene(tpm_B73_top[2,]$gene)
-plot_gene(tpm_B73_top[3,]$gene)
+plot_gene_tpm(tpm_B73_top[1,]$gene)
+plot_gene_tpm(tpm_B73_top[2,]$gene)
+plot_gene_tpm(tpm_B73_top[3,]$gene)
 ```
 
 #### Contrast for TIL01
@@ -325,14 +329,15 @@ hist(tpm_fit_TIL01[which(tpm_fit_TIL01$P.Value > 0.73 & tpm_fit_TIL01 < 0.77),]$
 
 Zm00001d052931
 ```{r}
-plot_gene("Zm00001d052931")
+plot_gene_tpm("Zm00001d052931")
+#plot_gene_counts("Zm00001d052931")
 ```
 
 
 ```{r}
-plot_gene(tpm_TIL01_top[1,]$gene)
-plot_gene(tpm_TIL01_top[2,]$gene)
-plot_gene(tpm_TIL01_top[500,]$gene)
+plot_gene_tpm(tpm_TIL01_top[1,]$gene)
+plot_gene_tpm(tpm_TIL01_top[2,]$gene)
+plot_gene_tpm(tpm_TIL01_top[500,]$gene)
 ```
 
 #### merge contrast results
@@ -341,6 +346,13 @@ plot_gene(tpm_TIL01_top[500,]$gene)
 tpm_results <- merge(tpm_B73_top, tpm_TIL01_top, by="gene")
 dim(tpm_results)
 ```
+
+merge unfiltered results:
+```{r}
+tpm_all_res <- merge(tpm_fit_B73, tpm_fit_TIL01, by="gene")
+dim(tpm_all_res)
+```
+
 
 What percent of genes is that?
 
@@ -371,19 +383,21 @@ The logFC is the difference between a parent and the hybrid.
 lfc <- dplyr::select(tpm_results, gene, logFC.x, logFC.y, P.Value.x, P.Value.y, adj.P.Val.x, adj.P.Val.y) %>% arrange(logFC.x)
 
 head(lfc)
+x <- dplyr::select(lfc, gene, adj.P.Val.x)
+write.table(x, "B73_TIL01_lfc.csv", sep=",", quote = F, row.names = F, col.names = F)
 ```
 
-
+# Over-dominant F1
 
 ```{r}
-plot_gene("Zm00001d024522")
+plot_gene_tpm("Zm00001d024522")
 gene_tpm_long %>% filter(gene == "Zm00001d024522")
 lfc %>% filter(gene == "Zm00001d024522")
 ```
 
 Zm00001d033389
 ```{r}
-plot_gene("Zm00001d033389")
+plot_gene_tpm("Zm00001d033389")
 gene_tpm_long %>% filter(gene == "Zm00001d033389")
 lfc %>% filter(gene == "Zm00001d033389")
 ```
@@ -395,7 +409,7 @@ gene_tpm_long %>% filter(gene == "Zm00001d030028")
 lfc %>% filter(gene == "Zm00001d030028")
 ```
 
-Opposing logFC
+# Mid-parent expression
 
 Zm00001d005583
 ```{r}
@@ -415,25 +429,27 @@ plot_gene("Zm00001d002937")
 
 Zm00001d050635
 ```{r}
-plot_gene("Zm00001d050635")
+plot_gene_tpm("Zm00001d050635")
 lfc %>% filter(gene == "Zm00001d050635")
 ```
 
+# Under-dominant
+
 Zm00001d028541
 ```{r}
-plot_gene("Zm00001d028541")
+plot_gene_tpm("Zm00001d028541")
 lfc %>% filter(gene == "Zm00001d028541")
 ```
 
 Zm00001d052340
 ```{r}
-plot_gene("Zm00001d052340")
+plot_gene_tpm("Zm00001d052340")
 lfc %>% filter(gene == "Zm00001d052340")
 ```
 
 Zm00001d017699
 ```{r}
-plot_gene("Zm00001d017699")
+plot_gene_tpm("Zm00001d017699")
 lfc %>% filter(gene == "Zm00001d017699")
 ```
 
@@ -489,8 +505,8 @@ head(tpm_f1_top)
 ```
 
 ```{r}
-plot_gene("Zm00001d003796")
-plot_gene("Zm00001d011183")
+plot_gene_tpm("Zm00001d003796")
+plot_gene_tpm("Zm00001d011183")
 ```
 
 ```{r}
@@ -509,10 +525,10 @@ tpm_f1_top %>% ggplot() +
 ```
 
 ```{r}
-plot_gene(dunno[1,]$gene)
-plot_gene(dunno[2,]$gene)
-plot_gene(dunno[500,]$gene)
-plot_gene(dunno[5000,]$gene)
+plot_gene_tpm(dunno[1,]$gene)
+plot_gene_tpm(dunno[2,]$gene)
+plot_gene_tpm(dunno[500,]$gene)
+plot_gene_tpm(dunno[5000,]$gene)
 ```
 
 How many genes from this dataset are under and over dominant?
