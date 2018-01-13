@@ -12,7 +12,6 @@ design/
 
 # ignore image files and rds
 *.rds
-*.png
 *.pdf
 
 # Example code in package build process
