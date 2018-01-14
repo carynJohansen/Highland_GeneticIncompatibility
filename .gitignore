@@ -1,6 +1,7 @@
 # Ignore certain folders
 images/
 design/
+data/
 
 # ignore output and info files
 *.out
