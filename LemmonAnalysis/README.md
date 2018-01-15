@@ -147,5 +147,5 @@ scripts/
 * kallisto_index.sh                     - build the index for the reference genome using kallisto
 * kallisto.sh                           - quantification of reads with kallisto using reference genome version 4
 * kallisto_v3.sh                        - using maize reference genome version 3 for kallisto quantification
-* sra-dump.sh				- get data from SRA using samtools
+* sra-dump.sh				                    - get data from SRA using samtools
 
