@@ -1,3 +1,16 @@
+# README for LemmonAnalysis/
+
+* Created: January 5, 2018
+* Author: Caryn Johansen
+* Contact: caryn.k.johansen@gmail.com
+
+
+Last updated: January 15, 2018
+
+**IMPORTANT NOTE:** While summarizing and cleaning my farm, I did move some files and directories. This may have changed how some of the files run - but I did not go in and change those scripts. If you are trying to run a script as is and it fails, the first issue checked should be the directory paths.
+
+**MEA CULPA:** I wrote this all in vim very quickly. I did not spell check or edit.
+
 # Testing the Gene Incompatibility hypothesis/analysis pipeline on Maize:Teosinte data
 
 The purpose of this example project is to use RNA-Seq data from the paper Lemmon et al. 2014.
@@ -14,7 +27,67 @@ GEO: https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE61810
 
 meta data to be found at: https://www.ncbi.nlm.nih.gov/Traces/study/?WebEnv=NCID_1_84857220_130.14.18.48_5555_1508787163_1278959485_0MetA0_S_HStore&query_key=2
 
-# Analysis
+## LemmonAnalysis/
+
+There is a README.md file in LemmonAnalysis/ that going into detail for all the files, and provides data links, etc.
+
+Here, I will provide an overview of the directories. This information is also in the LemmonAnalysis/README.md file.
+
+Directory structure:
+
+```
+Highland_GeneticIncompatibility/LemmonAnalysis/
+├── analysis
+│   ├── GOanalysis
+│   ├── images
+│   ├── plotting_files
+│   │   └── figure-html
+│   └── scripts
+├── data
+│   ├── LemmonSupp
+│   ├── processed
+│   │   ├── v3
+│   │   │   └── PRJNA262181_leaf
+│   │   └── v4
+│   │       └── PRJNA262181_leaf
+│   └── raw
+├── logs
+├── paper_info
+├── python_testing
+├── run_info
+└── scripts
+```
+
+### analysis/
+
+The directory for the scripts analyzing the processed data, and for holding the outputs.
+
+
+the .rds files are the saved outputs and steps of the R scripts.
+
+* B73_TIL01_lfc.csv             - Lof fold change output between B73 and TIL01
+* GOanalysis/                   - GO analysis R script
+* images/                       - PDF and PNG files output from R scripts
+* plotting.md                   - markdown output of plotting.Rmd
+* plotting_files/               - image files for plotting.md
+* scripts/                      - R scripts for analysis
+
+#### analysis/scripts/
+
+* aggregation.R                 - code from Yi et al. 2017 to aggregate the output p-value for kallisto and sleuth analysis
+* basic_analysis.R              - some preliminary looks at kallisto abundance data
+* plotting.Rmd                  - the main R script for plotting the output
+* sleuthDE.R                    - test R code for using Sleuth
+
+#### analysis/GOanalysis/
+
+* maizeGOenrighment.R           - R code for conducting a GO enrichment test on lists of maize genes
+
+#### analysis/images/
+
+Image output from plotting.Rmd file
+
+### data/
 
 For differential gene expression analysis, see limmaDE.Rmd
 
