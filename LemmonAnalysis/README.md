@@ -1,15 +1,15 @@
 # README for LemmonAnalysis/
 
-Created: January 5, 2018
-Author: Caryn Johansen
-Contact: caryn.k.johansen@gmail.com
+* Created: January 5, 2018
+* Author: Caryn Johansen
+* Contact: caryn.k.johansen@gmail.com
 
 
 Last updated: January 15, 2018
 
-IMPORTANT NOTE: While summarizing and cleaning my farm, I did move some files and directories. This may have changed how some of the files run - but I did not go in and change those scripts. If you are trying to run a script as is and it fails, the first issue checked should be the directory paths.
+**IMPORTANT NOTE:** While summarizing and cleaning my farm, I did move some files and directories. This may have changed how some of the files run - but I did not go in and change those scripts. If you are trying to run a script as is and it fails, the first issue checked should be the directory paths.
 
-MEA CULPA: I wrote this all in vim very quickly. I did not spell check or edit.
+**MEA CULPA:** I wrote this all in vim very quickly. I did not spell check or edit.
 
 # Testing the Gene Incompatibility hypothesis/analysis pipeline on Maize:Teosinte data
 
