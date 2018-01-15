@@ -18,6 +18,7 @@ meta data to be found at: https://www.ncbi.nlm.nih.gov/Traces/study/?WebEnv=NCID
 
 For differential gene expression analysis, see limmaDE.Rmd
 
+```
 Highland_GeneticIncompatibility/LemmonAnalysis/data/
 ├── LemmonSupp
 │   ├── SupplementalDataset1_v3.csv
@@ -28,6 +29,7 @@ Highland_GeneticIncompatibility/LemmonAnalysis/data/
 │   └── v4
 │       └── PRJNA262181_leaf
 └── raw
+```
 
 * LemmonSupp/                   - supplementary data set from Lemmon et al.
 * processed/                    - kallisto output using v3 and v4 maize genomes
@@ -45,9 +47,11 @@ Supplementary information from Lemmon et al. outlining the cross information.
 
 ### python_testing/
 
+```
 LemmonAnalysis/python_testing/
 ├── masterlist.txt
 └── parse_kallisto_output.py
+```
 
 Python script to parse the kallisto output.
 
@@ -58,12 +62,14 @@ Python script to parse the kallisto output.
 
 ### scripts/
 
+```
 scripts/
 ├── kallisto_index.sh
 ├── kallisto.sh
 ├── kallisto_v3.sh
 ├── single_kallisto.sh
 └── sra-dump.sh
+```
 
 * kallisto_index.sh                     - build the index for the reference genome using kallisto
 * kallisto.sh                           - quantification of reads with kallisto using reference genome version 4
