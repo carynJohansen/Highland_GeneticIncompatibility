@@ -22,6 +22,7 @@ https://github.com/deruncie/F1_selection/blob/master/Accession_selection_for_F1s
 
 The parent proejct folder for the gene incompatibility project.
 
+```
 Highland_GeneticIncompatibility/
 ├── data
 │   ├── processed
@@ -44,15 +45,18 @@ Highland_GeneticIncompatibility/
 ├── logs
 ├── scripts
 └── XPCLR
+```
 
 Most of the current analysis in int he LemmonAnalysis directory, as that was the current focus of attention. As such, I will deal with that directory separately.
 
 ### data/
 
+```
 data/
 ├── processed
 └── raw
     └── SRR1586618_pass_1.fastq.gz
+```
 
 The typical raw/ and processed/ directory structure. mostly Empty for now, except one test fastq in the raw/ directory.
 
@@ -62,18 +66,22 @@ empty, but intended to be the output of slurm logs
 
 ### scripts
 
+```
 scripts/
 └── fieldsummary.R
+```
 
 The only script for this is an R script meant to understand the number of plants that Dan Runcie had growing, and perhaps to eventually graph them. Data source in in the R script.
 
 ### XPCLR/
 
+```
 XPCLR/
 ├── MexLow_GuaHigh.allChr.wtclr.txt
 ├── MexLow_MexHigh.allChr.wtclr.txt
 ├── MexLow_SW_US.allChr.wtclr.txt
 └── SA_Low_Andes.allChr.wtclr.txt
+```
 
 https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5531767/
 
@@ -87,6 +95,7 @@ Here, I will provide an overview of the directories. This information is also in
 
 Directory structure:
 
+```
 Highland_GeneticIncompatibility/LemmonAnalysis/
 ├── analysis
 │   ├── GOanalysis
@@ -107,6 +116,7 @@ Highland_GeneticIncompatibility/LemmonAnalysis/
 ├── python_testing
 ├── run_info
 └── scripts
+```
 
 ### analysis/
 
@@ -139,6 +149,7 @@ Image output from plotting.Rmd file
 
 ### data/
 
+```
 Highland_GeneticIncompatibility/LemmonAnalysis/data/
 ├── LemmonSupp
 │   ├── SupplementalDataset1_v3.csv
@@ -149,6 +160,7 @@ Highland_GeneticIncompatibility/LemmonAnalysis/data/
 │   └── v4
 │       └── PRJNA262181_leaf
 └── raw
+```
 
 * LemmonSupp/                   - supplementary data set from Lemmon et al.
 * processed/                    - kallisto output using v3 and v4 maize genomes
@@ -166,9 +178,11 @@ Supplementary information from Lemmon et al. outlining the cross information.
 
 ### python_testing/
 
+```
 LemmonAnalysis/python_testing/
 ├── masterlist.txt
 └── parse_kallisto_output.py
+```
 
 Python script to parse the kallisto output.
 
@@ -179,12 +193,14 @@ Python script to parse the kallisto output.
 
 ### scripts/
 
+```
 scripts/
 ├── kallisto_index.sh
 ├── kallisto.sh
 ├── kallisto_v3.sh
 ├── single_kallisto.sh
 └── sra-dump.sh
+```
 
 * kallisto_index.sh                     - build the index for the reference genome using kallisto
 * kallisto.sh                           - quantification of reads with kallisto using reference genome version 4
